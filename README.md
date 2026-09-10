@@ -1,6 +1,8 @@
 # Garda Handwriting Text OCR
 
-Garda Handwriting Text OCR is a private Obsidian plugin for turning handwritten notes into searchable text inside Obsidian. V1 uses a Garda SaaS OCR backend with GPT-5 mini and the existing TutivSoft Constance credit system.
+Garda Handwriting Text OCR is an Obsidian plugin for turning handwritten notes into searchable text inside Obsidian. V1 uses a Garda SaaS OCR backend and the existing TutivSoft Constance credit system.
+
+Version: `5.7.1` · [Complete user guide](./docs/USER_GUIDE.md)
 
 ## Why This Plugin
 
@@ -25,13 +27,13 @@ One page consumes one OCR credit. Unchanged files are served from the local cont
 
 ## Product Direction
 
-Garda provides handwriting OCR inside Obsidian through a remote V1 backend. The selected page is sent to the Garda backend and GPT-5 mini only after an explicit user action.
+Garda provides handwriting OCR inside Obsidian through a remote V1 backend. The selected page is sent to the Garda backend and its configured OCR model only after an explicit user action.
 
 The intended value proposition is:
 
 - Convert handwritten images or scanned pages into searchable Markdown text.
 - Preserve the source image alongside the extracted text.
-- Work locally or offline where the selected model and device support it.
+- Preserve the original source file while adding searchable Markdown output.
 - Avoid the incumbent service's pricing and workflow while keeping Garda's V1 page-credit pricing transparent.
 - Integrate extracted text with Obsidian's vault and global search.
 - Handle cursive, messy handwriting, page layouts, and multiple pages better than generic OCR.
@@ -57,13 +59,13 @@ Supported inputs are JPG, PNG, GIF, BMP, TIFF, HEIC, WEBP, and PDF. Inputs are l
 
 ## Privacy
 
-OCR is explicit and user initiated. The selected vault file is sent over HTTPS to the configured Garda backend and then to GPT-5 mini. Garda does not train models on user images, extracted text, or metadata, and does not collect unrelated telemetry. Uploaded source data and derived page images are removed after the configured retention window. The original vault file is preserved.
+OCR is explicit and user initiated. The selected vault file is sent over HTTPS to the configured Garda backend and then to its configured OCR model. Garda does not train models on user images, extracted text, or metadata, and does not collect unrelated telemetry. Uploaded source data and derived page images are removed after the configured retention window. The original vault file is preserved.
 
 Low-quality pages are marked for manual review and cannot be used for destructive embed replacement without review.
 
 ## Billing And Model
 
-Garda uses the existing TutivSoft Constance browser-relay credit system. One OCR credit is consumed for each successfully processed page. The current remote model is GPT-5 mini. Checkout and balance display are provided through Constance; Garda does not contain billing secrets or checkout infrastructure.
+Garda uses the existing TutivSoft Constance browser-relay credit system. One OCR credit is consumed for each successfully processed page. The OCR model is selected by the Garda backend. Checkout and balance display are provided through Constance; Garda does not contain billing secrets or checkout infrastructure.
 
 ## Limitations
 
