@@ -4,6 +4,7 @@ export interface GardaSettings {
   constanceDeviceId: string;
   billingEmail: string;
   cachedBalance: number;
+  pendingSpendEvents: Array<{ eventId: string; amount: number }>;
   cache: Record<string, CachedPage[]>;
 }
 

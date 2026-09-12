@@ -1,5 +1,5 @@
 import { Editor, Notice, Plugin, TFile, TFolder, type Menu } from "obsidian";
-import { openCheckout, spendPage, syncBalance } from "./billing";
+import { openCheckout, retryPendingSpendEvents, spendPage, syncBalance } from "./billing";
 import { combinePages, poll, stableHash, submit, SUPPORTED_EXTENSIONS } from "./ocr";
 import { DEFAULT_SETTINGS } from "./settings";
 import { GardaSettingTab } from "./settings-tab";
@@ -22,6 +22,8 @@ export default class GardaPlugin extends Plugin {
     const stored = await this.loadData();
     this.settings = Object.assign({}, DEFAULT_SETTINGS, stored, { cache: { ...DEFAULT_SETTINGS.cache, ...(stored?.cache ?? {}) } });
     if (!this.settings.constanceDeviceId) { const bytes = new Uint8Array(16); window.crypto.getRandomValues(bytes); this.settings.constanceDeviceId = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(""); await this.saveSettings(); }
+    this.settings.pendingSpendEvents = Array.isArray(this.settings.pendingSpendEvents) ? this.settings.pendingSpendEvents.filter((item) => item && typeof item.eventId === "string" && Number.isInteger(item.amount) && item.amount > 0) : [];
+    await this.saveSettings();
     this.registerEvent(this.app.workspace.on("file-menu", (menu, file) => { if (file instanceof TFile && this.isSupported(file)) this.addFileActions(menu, file); if (file instanceof TFolder) this.addFolderAction(menu, file); }));
     this.registerEvent(this.app.workspace.on("editor-menu", (menu, editor) => { const target = this.embedAtCursor(editor); if (target) this.addEditorActions(menu, target); }));
     this.addCommand({ id: "extract-to-clipboard", name: "Garda: Extract handwriting to clipboard", callback: () => { void this.runActive("clipboard"); } });
@@ -32,7 +34,7 @@ export default class GardaPlugin extends Plugin {
     this.addCommand({ id: "cancel-active-operation", name: "Garda: Cancel active OCR or batch", callback: () => this.cancelActiveOperation() });
     this.addSettingTab(new GardaSettingTab(this.app, this));
     if (!this.settings.apiKey.trim()) new Notice("Garda setup: add your API key in Settings → Garda Handwriting Text OCR.");
-    void syncBalance(this);
+    void syncBalance(this).then(() => retryPendingSpendEvents(this));
   }
 
   onunload(): void { this.abortController?.abort(); this.progressNotice?.hide(); }
@@ -127,7 +129,10 @@ export default class GardaPlugin extends Plugin {
       if (result.status !== "completed") throw new Error(result.error || "OCR job failed.");
       const successfulPages = result.pages.filter((page) => !page.failed);
       if (successfulPages.length === 0) throw new Error("OCR returned no usable pages.");
-      for (const page of successfulPages) { if (!(await spendPage(this))) throw new Error("OCR credit unavailable for the next page."); }
+      // Spend the complete successful-page count in one idempotent server
+      // operation. Per-page calls could charge the first pages and then fail,
+      // leaving the user with no transcript but a partially consumed pack.
+      if (!(await spendPage(this, successfulPages.length))) throw new Error("OCR credits are unavailable for this document.");
       this.settings.cache[key] = result.pages;
       await this.saveSettings();
       return result;

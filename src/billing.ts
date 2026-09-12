@@ -15,6 +15,13 @@ function eventId(): string {
   return `evt_${Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")}`;
 }
 
+export async function retryPendingSpendEvents(plugin: GardaPlugin): Promise<void> {
+  for (const pending of [...(plugin.settings.pendingSpendEvents ?? [])]) {
+    const result = await spendPage(plugin, pending.amount, pending.eventId);
+    if (!result) break;
+  }
+}
+
 export async function syncBalance(plugin: GardaPlugin): Promise<void> {
   if (!plugin.settings.constanceDeviceId) return;
   try {
@@ -32,21 +39,27 @@ export async function syncBalance(plugin: GardaPlugin): Promise<void> {
   }
 }
 
-export async function spendPage(plugin: GardaPlugin): Promise<boolean> {
+export async function spendPage(plugin: GardaPlugin, amount = 1, stableEventId = eventId()): Promise<boolean> {
+  if (!Number.isInteger(amount) || amount <= 0) return false;
+  plugin.settings.pendingSpendEvents = [...(plugin.settings.pendingSpendEvents ?? []), { eventId: stableEventId, amount }]
+    .filter((item, index, items) => items.findIndex((candidate) => candidate.eventId === item.eventId) === index);
+  await plugin.saveSettings();
   try {
     const response = await requestUrl({
       url: `${BASE_URL}/api/v1/public/browser/credits/spend`, method: "POST", throw: false,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ app_id: APP_ID, external_customer_id: plugin.settings.constanceDeviceId, machine_id: plugin.settings.constanceDeviceId, amount: 1, event_id: eventId() }),
+      body: JSON.stringify({ app_id: APP_ID, external_customer_id: plugin.settings.constanceDeviceId, machine_id: plugin.settings.constanceDeviceId, amount, event_id: stableEventId }),
     });
     if (response.status === 402 || response.status === 404) {
       new Notice("Garda: no OCR credits remain. Buy credits in plugin settings.");
       plugin.settings.cachedBalance = 0;
+      plugin.settings.pendingSpendEvents = plugin.settings.pendingSpendEvents.filter((item) => item.eventId !== stableEventId);
       await plugin.saveSettings();
       return false;
     }
     if (response.status < 200 || response.status >= 300) throw new Error(`HTTP ${response.status}`);
     plugin.settings.cachedBalance = Math.max(0, Number(response.json?.data?.credits?.balance) || 0);
+    plugin.settings.pendingSpendEvents = plugin.settings.pendingSpendEvents.filter((item) => item.eventId !== stableEventId);
     await plugin.saveSettings();
     return true;
   } catch (error) {
