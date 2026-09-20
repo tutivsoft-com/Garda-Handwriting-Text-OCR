@@ -39,7 +39,6 @@ export default class GardaPlugin extends Plugin {
     this.addCommand({ id: "batch-extract-folder", name: "Garda: Batch extract folder", callback: () => { const folder = this.app.workspace.getActiveFile()?.parent; if (folder) void this.runFolder(folder); } });
     this.addCommand({ id: "cancel-active-operation", name: "Garda: Cancel active OCR or batch", callback: () => this.cancelActiveOperation() });
     this.addSettingTab(new GardaSettingTab(this.app, this));
-    if (!this.settings.apiKey.trim()) new Notice("Garda setup: add your API key in Settings → Garda Handwriting Text OCR.");
     void syncBalance(this).then(() => retryPendingSpendEvents(this));
   }
 
