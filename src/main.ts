@@ -4,6 +4,7 @@ import { combinePages, poll, stableHash, submit, SUPPORTED_EXTENSIONS } from "./
 import { DEFAULT_SETTINGS } from "./settings";
 import { GardaSettingTab } from "./settings-tab";
 import type { GardaJobResult, GardaSettings } from "./types";
+import { PluginSupport } from "./plugin-support";
 
 type GardaAction = "clipboard" | "append" | "replace" | "new-note";
 type EditorPosition = { line: number; ch: number };
@@ -12,6 +13,7 @@ type EmbedTarget = { file: TFile; editor: Editor; from: EditorPosition; to: Edit
 /** Coordinates Garda's setup, single-file OCR, and folder-batch workflows. */
 export default class GardaPlugin extends Plugin {
   declare settings: GardaSettings;
+  support!: PluginSupport;
   private abortController: AbortController | null = null;
   private activeOperation: "single" | "batch" | null = null;
   private batchCancelRequested = false;
@@ -19,9 +21,13 @@ export default class GardaPlugin extends Plugin {
 
   /** Register commands and menus, then load settings without starting a scan. */
   async onload(): Promise<void> {
+    this.support = new PluginSupport(this, { name: "Garda Handwriting Text OCR", summary: "Extract text from supported images and PDFs into your notes.", quickStart: ["Sign in to billing in Settings.", "Open or select a supported attachment.", "Choose an OCR destination command."], commands: ["Extract to clipboard", "Append to current note", "Batch extract folder"], troubleshooting: ["Use Copy debug log before reporting a problem.", "Check the attachment type and active billing balance."] });
+    this.support.start();
     const stored = await this.loadData();
     this.settings = Object.assign({}, DEFAULT_SETTINGS, stored, { cache: { ...DEFAULT_SETTINGS.cache, ...(stored?.cache ?? {}) } });
     if (!this.settings.constanceDeviceId) { const bytes = new Uint8Array(16); window.crypto.getRandomValues(bytes); this.settings.constanceDeviceId = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(""); await this.saveSettings(); }
+    this.settings.billingAccessToken = typeof this.settings.billingAccessToken === "string" ? this.settings.billingAccessToken : "";
+    this.settings.billingAccountLinked = this.settings.billingAccountLinked === true && Boolean(this.settings.billingAccessToken);
     this.settings.pendingSpendEvents = Array.isArray(this.settings.pendingSpendEvents) ? this.settings.pendingSpendEvents.filter((item) => item && typeof item.eventId === "string" && Number.isInteger(item.amount) && item.amount > 0) : [];
     await this.saveSettings();
     this.registerEvent(this.app.workspace.on("file-menu", (menu, file) => { if (file instanceof TFile && this.isSupported(file)) this.addFileActions(menu, file); if (file instanceof TFolder) this.addFolderAction(menu, file); }));

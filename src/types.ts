@@ -3,6 +3,8 @@ export interface GardaSettings {
   apiKey: string;
   constanceDeviceId: string;
   billingEmail: string;
+  billingAccessToken: string;
+  billingAccountLinked: boolean;
   cachedBalance: number;
   pendingSpendEvents: Array<{ eventId: string; amount: number }>;
   cache: Record<string, CachedPage[]>;
