@@ -2,7 +2,7 @@
 
 Garda Handwriting Text OCR is an Obsidian plugin for turning handwritten notes into searchable text inside Obsidian. V1 uses a Garda SaaS OCR backend and the existing TutivSoft Constance credit system.
 
-Version: `5.7.5` · [Complete user guide](./docs/USER_GUIDE.md)
+Version: `5.7.6` · [Complete user guide](./docs/USER_GUIDE.md)
 
 ## Why This Plugin
 
