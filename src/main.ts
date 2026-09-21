@@ -27,6 +27,7 @@ export default class GardaPlugin extends Plugin {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, stored, { cache: { ...DEFAULT_SETTINGS.cache, ...(stored?.cache ?? {}) } });
     if (!this.settings.constanceDeviceId) { const bytes = new Uint8Array(16); window.crypto.getRandomValues(bytes); this.settings.constanceDeviceId = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(""); await this.saveSettings(); }
     this.settings.billingAccessToken = typeof this.settings.billingAccessToken === "string" ? this.settings.billingAccessToken : "";
+    this.settings.billingRefreshToken = typeof this.settings.billingRefreshToken === "string" ? this.settings.billingRefreshToken : "";
     this.settings.billingAccountLinked = this.settings.billingAccountLinked === true && Boolean(this.settings.billingAccessToken);
     this.settings.pendingSpendEvents = Array.isArray(this.settings.pendingSpendEvents) ? this.settings.pendingSpendEvents.filter((item) => item && typeof item.eventId === "string" && Number.isInteger(item.amount) && item.amount > 0) : [];
     await this.saveSettings();

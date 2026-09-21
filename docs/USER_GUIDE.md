@@ -47,9 +47,22 @@ Review uncertain pages and dates before treating the text as authoritative.
 
 Right-click a folder and choose the batch extraction action. Garda shows progress, keeps the original files, caches unchanged content, and reports pages that need manual review. Use the visible cancel control when you need to stop a long batch.
 
-## Credits and privacy
+## Credits, checkout, and privacy
 
-Each successfully processed page consumes one OCR credit. The selected file is uploaded to the configured backend, which forwards it to its configured OCR model. Do not upload confidential handwriting unless that remote-processing flow is acceptable to you.
+Each successfully processed page consumes one OCR credit. In **Settings**, enter
+your Constance billing email and sign in or create an account before scanning.
+The plugin links its stable installation ID to that account and refreshes the
+server-authoritative balance. The 20-, 160-, and 640-page packs are one-time
+purchases. Garda opens the authenticated Constance checkout in your browser;
+after payment, return to Obsidian and press **Refresh**. Payment fulfillment is
+confirmed by Constance's webhook processing, not by the browser return page.
+
+If a network response is lost while a document is being charged, Garda keeps
+the pending event ID and retries that same event so the server's idempotency
+guard prevents a duplicate debit. The selected file is uploaded to the
+configured backend, which forwards it to its configured OCR model. Do not
+upload confidential handwriting unless that remote-processing flow is
+acceptable to you.
 
 ## Troubleshooting
 

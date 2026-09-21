@@ -6,6 +6,7 @@ export const DEFAULT_SETTINGS: GardaSettings = {
   constanceDeviceId: "",
   billingEmail: "",
   billingAccessToken: "",
+  billingRefreshToken: "",
   billingAccountLinked: false,
   cachedBalance: 0,
   pendingSpendEvents: [],

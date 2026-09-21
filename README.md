@@ -2,7 +2,7 @@
 
 Garda Handwriting Text OCR is an Obsidian plugin for turning handwritten notes into searchable text inside Obsidian. V1 uses a Garda SaaS OCR backend and the existing TutivSoft Constance credit system.
 
-Version: `5.7.11` · [Complete user guide](./docs/USER_GUIDE.md)
+Version: `5.7.12` · [Complete user guide](./docs/USER_GUIDE.md)
 
 ## Why This Plugin
 
@@ -65,7 +65,19 @@ Low-quality pages are marked for manual review and cannot be used for destructiv
 
 ## Billing And Model
 
-Garda uses the existing TutivSoft Constance browser-relay credit system. One OCR credit is consumed for each successfully processed page. The OCR model is selected by the Garda backend. Checkout and balance display are provided through Constance; Garda does not contain billing secrets or checkout infrastructure.
+Garda uses the account-linked TutivSoft Constance credit system. Sign in or
+create a Constance account in plugin settings; Garda links a stable local
+installation ID and polls the account-owned entitlement snapshot for the live
+balance. One OCR credit is consumed for each successfully processed page, and
+the same persisted event ID is reused if a spend response is interrupted.
+
+The three one-time packs use Constance catalog plan codes `standard`, `pro`,
+and `ultimate`. Checkout is created through the authenticated Constance
+checkout endpoint with an idempotency key, which lets the server resolve the
+current Paddle price. The legacy `/buy` URL is retained only as a compatibility
+fallback. Paddle webhook fulfillment remains authoritative; after completing
+payment in the browser, use **Refresh** in Garda settings. Garda has no shared
+billing secret, signed callback endpoint, or raw-body/HMAC callback handler.
 
 ## Limitations
 

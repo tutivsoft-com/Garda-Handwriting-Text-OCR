@@ -45,7 +45,12 @@ V1 uses a SaaS OCR backend with the model configured by that backend.
 - Reuse the existing TutivSoft Constance billing and credit system.
 - Do not rebuild billing, checkout, entitlement, or credit-spend infrastructure in Garda.
 - Charge one credit per processed page.
-- Keep credit authorization and balance handling in the existing Constance integration pattern.
+- Use the account-linked Constance integration: stable installation linking,
+  bearer entitlements, authenticated catalog-plan checkout, and authenticated
+  idempotent credit spend.
+- Preserve a pending spend event and reuse its event ID after a timeout or
+  temporary server failure; never create a replacement event for the same OCR
+  operation.
 - Make credit usage and remaining balance visible to the user.
 - Never bundle a billing secret, API key, or private credential in the plugin.
 

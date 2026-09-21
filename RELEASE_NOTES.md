@@ -1,5 +1,9 @@
 # Release Notes
 
+## 5.7.12 - 2026-09-21
+
+Maintenance release for the current Constance billing integration audit.
+
 ## 5.7.6 - 2026-09-20
 
 Metadata-only patch preparation: synchronized all version surfaces and the

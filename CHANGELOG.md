@@ -1,5 +1,9 @@
 # Changelog
 
+## 5.7.12 - 2026-09-21
+
+- Maintenance release for the current Constance billing integration audit.
+
 ## 5.7.11 - 2026-09-21
 
 - Incremented release metadata without rebuilding the plugin.
