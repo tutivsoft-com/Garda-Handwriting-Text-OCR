@@ -1,41 +1,33 @@
-﻿# Top 10 Benefits of Garda Handwriting Text OCR
+# Top 10 Benefits of Garda Handwriting Text OCR
 
-1. **Searchable Handwriting in Obsidian**
-   - **Benefit:** Converts handwritten notes into digital Markdown, making paper notes globally searchable in your vault.
-   - **Example:** Search `Obsidian global search` for a handwritten medical term written on an iPad or scanned notebook.
+1. **Transcribe from Obsidian**
+   - Run OCR on a selected image or PDF without leaving your vault.
 
-2. **Superior Recognition of Cursive & Messy Script**
-   - **Benefit:** Uses specialized handwriting models that outperform generic Tesseract OCR on difficult penmanship.
-   - **Example:** Accurately extracts cursive lecture notes or hurried meeting minutes that traditional OCR renders as gibberish.
+2. **Choose the destination**
+   - Copy the result, append it to a note, replace an embed, or create a transcription note.
 
-3. **Preservation of Original Scans Side-by-Side**
-   - **Benefit:** Retains original handwritten images in your note alongside newly extracted text.
-   - **Example:** Inserts extracted text directly below the embedded `![[handwritten-page.png]]` for easy visual verification.
+3. **Keep the original attachment by default**
+   - The source image or PDF remains in the vault unless you explicitly replace its embed.
 
-4. **Non-Destructive Processing**
-   - **Benefit:** Source image files are never altered or deleted during the OCR pipeline.
-   - **Example:** Your original PNG/JPEG camera scans remain intact in your attachments folder.
+4. **Handle multi-page PDFs**
+   - Garda processes PDF pages in sequence and reports page-level results.
 
-5. **Content-Hash Local Caching**
-   - **Benefit:** Prevents duplicate charges or redundant processing when viewing or re-scanning unchanged files.
-   - **Example:** Re-opening or re-checking a note with an already scanned image uses cached OCR text at zero extra cost.
+5. **Batch a folder**
+   - Process supported attachments in a folder with progress and cancellation controls.
 
-6. **Multi-Page Document Support**
-   - **Benefit:** Handles multi-page notebook scans and complex physical document layouts.
-   - **Example:** Processes a 5-page scanned study guide and organizes the output into ordered Markdown sections.
+6. **Review uncertain pages**
+   - Quality flags and manual-review markers help surface output that needs attention.
 
-7. **Explicit User-Triggered Processing**
-   - **Benefit:** Scans occur only when you choose, avoiding unexpected network calls or credit consumption.
-   - **Example:** Trigger OCR manually via context menu on specific image attachments rather than auto-uploading everything.
+7. **Avoid overwriting output notes**
+   - Garda selects a numbered transcription-note name if a destination already exists.
 
-8. **Native Vault Search Integration**
-   - **Benefit:** Extracted text immediately indexes into Obsidian’s native search, graph view, and backlinks.
-   - **Example:** Backlinks like `[[Project Alpha]]` mentioned in your handwriting become live, clickable links in your vault.
+8. **Reuse unchanged results**
+   - The local cache can reuse a completed transcription for the same unchanged source.
 
-9. **Transparent Per-Page Credit Packs**
-   - **Benefit:** Simple page-based pricing without lock-in subscriptions.
-   - **Example:** Purchase a $1 pack for 20 pages or $5 for 160 pages based on your scanning volume.
+9. **See the credit model**
+   - OCR credits are charged per successfully processed page through the Constance account.
 
-10. **Local-First Architecture**
-    - **Benefit:** Output is stored as standard local Markdown files with no proprietary database lock-in.
-    - **Example:** Export your vault anytime; all OCR transcriptions remain plain, portable text.
+10. **Keep text portable**
+    - Transcriptions are ordinary Markdown text that Obsidian can index and other tools can read.
+
+OCR is remote and requires a configured backend. Quality depends on the source page and OCR model; review the result before relying on it.

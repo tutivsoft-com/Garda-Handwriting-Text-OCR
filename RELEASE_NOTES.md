@@ -1,3 +1,7 @@
+# Release 5.7.14
+
+- Updated product documentation and the plugin description to reflect the current OCR backend, quality flags, retention, supported formats, and remote-processing boundary. No OCR runtime behavior changed.
+
 # Release 5.7.13
 
 - Simplified Obsidian command palette labels by removing repeated plugin-name prefixes.

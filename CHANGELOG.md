@@ -1,5 +1,10 @@
 # Changelog
 
+## 5.7.14 - 2026-09-24
+
+- Corrected the plugin description and refreshed the feature, requirements, architecture, and marketing docs to match the current backend model, data flow, limits, and privacy boundary.
+- No OCR runtime behavior changed.
+
 ## 5.7.13 - 2026-09-23
 
 - Simplified Obsidian command palette labels by removing repeated plugin-name prefixes.

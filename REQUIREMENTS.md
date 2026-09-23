@@ -1,113 +1,42 @@
 # Garda Handwriting Text OCR Requirements
 
-## Product Goal
+## Current product scope
 
-Build an Obsidian plugin that converts handwritten pages into searchable text,
-handles cursive and messy writing better than generic OCR, and avoids mandatory
-per-page billing from the incumbent service.
+Garda is an Obsidian plugin plus a separately deployed FastAPI service. A user selects an image or PDF and chooses where to put the transcription. The source repository includes the backend; the public plugin repository contains the complete reviewable TypeScript source and bundle, but not the backend implementation.
 
-## V1 Scope
+## Implemented plugin behavior
 
-V1 uses a SaaS OCR backend with the model configured by that backend.
+- Accept JPG/JPEG, PNG, GIF, BMP, TIFF/TIF, HEIC, WEBP, and PDF attachments up to 20 MB.
+- Offer clipboard copy, append-to-current-note, replace-embed, and create-transcription-note actions from Obsidian commands and file/editor menus.
+- Offer sequential folder batches with progress, per-file error handling, and cancellation.
+- Poll asynchronous backend jobs and show the current processing state.
+- Cache completed results locally using the source path and a lightweight content signature, so unchanged files can be reused.
+- Mark pages with quality and manual-review indicators. Low-quality output cannot be used for embed replacement.
+- Preserve originals by default. Replace-embed changes the selected Markdown embed only after successful review checks.
+- Avoid overwriting a transcription note by choosing a numbered destination when one already exists.
 
-## Core OCR Pipeline
+## Implemented service and billing behavior
 
-- Accept JPG, PNG, GIF, BMP, TIFF, HEIC, WEBP, and PDF files.
-- Support uploads up to at least 20 MB per input.
-- Split multi-page PDFs into individual page images before OCR.
-- Process and charge one OCR unit per page, not one unit per uploaded file.
-- Downscale and compress images before sending them to control token cost and keep per-page processing predictable.
-- Use the configured Garda OCR model with a fixed system prompt tuned specifically for handwriting transcription, not generic OCR.
-- Return plain text with line breaks and recognizable layout preserved where the model can infer it reliably.
-- Return a confidence or quality flag for every page.
-- Mark pages that require manual review.
+- Require a Garda bearer API key for OCR job requests and status polling.
+- Accept a single image or PDF through the OCR jobs endpoint; return per-page text, quality, review, failure, and progress state.
+- Split PDFs into pages, normalize images, resize to at most 2400 by 2400 pixels, and submit page images to OpenRouter Chat Completions.
+- The current backend source selects the model named ~deepseek/deepseek-v4-flash-latest and asks for faithful transcription rather than correction or summarization.
+- Charge one Constance OCR credit for each successfully processed page. Account linking, checkout, balance, and idempotent credit spends belong to Constance.
+- Keep backend job data in memory. Completed or stopped jobs are removed after the configured retention period, which defaults to 900 seconds. A backend restart can interrupt a job.
 
-## Obsidian Plugin
+## Privacy and data handling
 
-- Add image and PDF embed context-menu actions in the editor.
-- Add image and PDF actions in the file explorer.
-- Provide these extraction actions:
-  - Extract to clipboard.
-  - Append to the current note.
-  - Replace the embed with extracted text.
-  - Extract to a new note.
-- Provide command-palette entries for every extraction action.
-- Support a folder batch mode for scans.
-- Queue batch pages sequentially and show progress, current page, failures, and cancellation.
-- Provide API-key entry in plugin settings.
-- Show the live Constance credit balance in plugin settings.
-- Cache OCR results by source-file identity and content hash so rerunning OCR on an unchanged file does not charge again.
-- Preserve the original image or PDF.
-- Make generated text searchable through Obsidian global search.
+- OCR runs only after a user action. The selected vault file is sent to the configured Garda backend over HTTPS; that backend sends page images to its configured OCR provider.
+- The plugin does not collect separate usage analytics. Billing and OCR requests go to their respective services.
+- Garda does not train a model on submitted content. The external OCR provider has separate data handling terms; review those terms before processing sensitive notes.
+- The service keeps active job inputs and results in process memory until the retention cleanup runs. The plugin's local cache is stored in its Obsidian settings data.
+- The plugin can modify a Markdown embed only when the user explicitly chooses Replace embed. Other destinations write to the clipboard or create/append Markdown text.
 
-## Billing
+## Operational requirements and limits
 
-- Reuse the existing TutivSoft Constance billing and credit system.
-- Do not rebuild billing, checkout, entitlement, or credit-spend infrastructure in Garda.
-- Charge one credit per processed page.
-- Use the account-linked Constance integration: stable installation linking,
-  bearer entitlements, authenticated catalog-plan checkout, and authenticated
-  idempotent credit spend.
-- Preserve a pending spend event and reuse its event ID after a timeout or
-  temporary server failure; never create a replacement event for the same OCR
-  operation.
-- Make credit usage and remaining balance visible to the user.
-- Never bundle a billing secret, API key, or private credential in the plugin.
-
-## OCR Backend
-
-- Provide an upload endpoint for single images and PDFs.
-- Provide an asynchronous job endpoint for large PDFs and batch requests.
-- Provide job-status polling so the plugin can show progress.
-- Return per-page text, quality flag, failure state, and retry state.
-- Delete uploaded files and derived page images after a short configurable retention window.
-- Do not train models on user images, extracted text, or metadata. State this explicitly in user-facing privacy documentation.
-- Keep OCR input and output isolated by user and job.
-- Keep billing outside this service by calling the existing Constance integration.
-
-## Privacy and Safety
-
-- Do not access files outside the user's Obsidian vault through the plugin.
-- Do not upload content without an explicit OCR action by the user.
-- Explain that remote OCR sends the selected page to the Garda backend and its configured OCR model.
-- State explicitly that user data is not used for model training.
-- Delete uploaded source data after the retention window.
-- Preserve the user's original files.
-- Require review of low-confidence output before destructive actions.
-- Do not collect unrelated telemetry.
-- Use HTTPS for all remote requests.
-
-## Model and Quality
-
-- Benchmark cursive, print, mixed handwriting, messy notes, skewed scans, low-light images, and multi-page notebooks.
-- Measure transcription accuracy and processing reliability.
-- Detect empty, repetitive, truncated, or obviously garbled responses before saving them.
-- Preserve paragraph breaks, headings, lists, dates, punctuation, and simple layout where the model can infer them.
-- Never present low-confidence transcription as certain.
-- Disclose the exact model used for remote OCR in the backend's user-facing configuration and documentation.
-
-## Differentiators
-
-- Keep token costs predictable through per-page preprocessing and charging.
-- Make the model, privacy behavior, retention policy, and billing model transparent.
-
-## Validation
-
-- Test every supported file format and the 20 MB upload limit.
-- Test multi-page PDF splitting and one-credit-per-page accounting.
-- Test image downscaling and compression behavior.
-- Test confidence flags and page quality reporting.
-- Test cache hits and verify unchanged files are not recharged.
-- Test clipboard, append, replace, new-note, command-palette, and batch actions.
-- Test asynchronous jobs, polling, cancellation, retries, and partial failures.
-- Test credit balance and Constance integration using the existing billing contract.
-- Test automatic deletion after the retention window.
-- Test that no user data is used for training and no unintended network requests occur.
-
-## Release Requirements
-
-- Include a README covering installation, usage, supported formats, limits, privacy, retention, model disclosure, billing, and limitations.
-- Include a compatible license for the plugin and any distributed model/runtime components.
-- Include an accurate Obsidian `manifest.json`.
-- Include complete source code in the public repository if submitted to the Obsidian Community directory.
-- Keep release tags synchronized with `manifest.json`.
+- Use HTTPS for a remote backend URL. HTTP is accepted only for localhost addresses during local development.
+- Configure a reachable backend URL and API key, verify the connection, and sign in to Constance before starting paid OCR.
+- Review transcriptions, especially pages marked medium or low quality. Quality labels are heuristic warnings, not calibrated confidence scores.
+- OCR quality varies by handwriting, scan quality, layout, and model output. Garda does not promise perfect transcription or a service availability target.
+- The backend uses in-memory jobs rather than a durable queue. A process restart can interrupt in-flight work.
+- Release validation includes the TypeScript build, the existing test command, JavaScript syntax check, version parity, and a public source-inclusive snapshot. These checks do not replace a fresh-vault OCR smoke test.

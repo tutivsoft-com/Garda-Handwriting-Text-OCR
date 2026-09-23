@@ -2,45 +2,19 @@
 
 Garda Handwriting Text OCR is an Obsidian plugin for turning handwritten notes into searchable text inside Obsidian. V1 uses a Garda SaaS OCR backend and the existing TutivSoft Constance credit system.
 
-Version: `5.7.13` · [Complete user guide](./docs/USER_GUIDE.md)
+Version: `5.7.14` · [Complete user guide](./docs/USER_GUIDE.md)
 
-## Why This Plugin
+Product documentation: [FEATURES.md](./FEATURES.md), [REQUIREMENTS.md](./REQUIREMENTS.md), [architecture.md](./architecture.md), and [MARKETING.md](./MARKETING.md).
 
-Handwriting-to-text OCR inside Obsidian has persistent, documented demand and no adequate free solution for real handwriting.
+## What Garda does
 
-- People have requested searchable handwriting OCR since at least 2021. A forum thread titled ["Searchable OCR - Let's get it built!"](https://forum.obsidian.md/) asked for automatic background OCR integrated with Obsidian's global search.
-- Obsidian still has no native handwriting support. Users continue to assemble manual workflows, and the same request appears repeatedly in Obsidian forums and r/ObsidianMD.
-- Generic OCR plugins, including Tesseract-based tools such as OCR Extractor, are useful for typed text but are weak on cursive, messy, and genuinely handwritten pages.
-- A July 2026 writeup still describes the gap: good handwriting recognition remains an external, paid service rather than a native Obsidian capability.
+Garda is an Obsidian plugin that turns a user-selected handwritten image or PDF into Markdown text. It sends the selected file to the configured Garda backend, which preprocesses pages and forwards them to the OCR model configured in the backend. The current backend source uses OpenRouter Chat Completions with `~deepseek/deepseek-v4-flash-latest`; the model is controlled by the backend, not by plugin settings.
 
-## Opportunity
-
-Garda uses a metered SaaS OCR backend for V1. The plugin may be free to install, but scans consume Garda OCR page credits through the existing TutivSoft Constance billing service.
-
-Current Garda credit packs:
-
-- $1 for 20 pages.
-- $5 for 160 pages.
-- $15 for 640 pages.
-
-One page consumes one OCR credit. Unchanged files are served from the local content-hash cache and do not consume another credit.
-
-## Product Direction
-
-Garda provides handwriting OCR inside Obsidian through a remote V1 backend. The selected page is sent to the Garda backend and its configured OCR model only after an explicit user action.
-
-The intended value proposition is:
-
-- Convert handwritten images or scanned pages into searchable Markdown text.
-- Preserve the source image alongside the extracted text.
-- Preserve the original source file while adding searchable Markdown output.
-- Avoid the incumbent service's pricing and workflow while keeping Garda's V1 page-credit pricing transparent.
-- Integrate extracted text with Obsidian's vault and global search.
-- Handle cursive, messy handwriting, page layouts, and multiple pages better than generic OCR.
+Each successfully processed page consumes one OCR credit. The plugin offers 20-, 160-, and 640-page packs through Constance; checkout shows the current price. Unchanged files can be served from the local cache without another OCR request or credit spend.
 
 ## Status
 
-V1 implementation is complete and pushed to the repository. The plugin bundle and FastAPI backend are included in source control. Garda’s live Constance catalog entry is active, and the three live Paddle credit packs are provisioned.
+The source repository contains the Obsidian plugin, tests, and FastAPI backend. The public release repository contains the reviewable plugin TypeScript source and runtime bundle; it does not contain the private backend implementation.
 
 ## Installation
 
@@ -61,7 +35,7 @@ Supported inputs are JPG, PNG, GIF, BMP, TIFF, HEIC, WEBP, and PDF. Inputs are l
 
 ## Privacy
 
-OCR is explicit and user initiated. The selected vault file is sent over HTTPS to the configured Garda backend and then to its configured OCR model. Garda does not train models on user images, extracted text, or metadata, and does not collect unrelated telemetry. Uploaded source data and derived page images are removed after the configured retention window. The original vault file is preserved.
+OCR is explicit and user initiated. The selected vault file is sent over HTTPS to the configured Garda backend and then to its configured OCR provider. The Garda service does not train models; the provider has its own data handling terms, which users should review before processing sensitive content. Job data is held in backend memory and removed after the configured retention period, which defaults to 15 minutes. The plugin does not send separate usage analytics. The original vault file is preserved unless the user explicitly chooses **Replace embed**.
 
 Low-quality pages are marked for manual review and cannot be used for destructive embed replacement without review.
 
@@ -73,8 +47,9 @@ installation ID and polls the account-owned entitlement snapshot for the live
 balance. One OCR credit is consumed for each successfully processed page, and
 the same persisted event ID is reused if a spend response is interrupted.
 
-The three one-time packs use Constance catalog plan codes `standard`, `pro`,
-and `ultimate`. Checkout is created through the authenticated Constance
+The 20-, 160-, and 640-page one-time packs use Constance catalog plan codes
+`standard`, `pro`, and `ultimate`; the current price is returned by Constance.
+Checkout is created through the authenticated Constance
 checkout endpoint with an idempotency key, which lets the server resolve the
 current Paddle price. The legacy `/buy` URL is retained only as a compatibility
 fallback. Paddle webhook fulfillment remains authoritative; after completing
