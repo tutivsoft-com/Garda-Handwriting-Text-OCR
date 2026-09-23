@@ -1,4 +1,4 @@
-import { Editor, Notice, Plugin, TFile, TFolder, type Menu } from "obsidian";
+import { Editor, MarkdownView, Notice, Plugin, TFile, TFolder, type Menu } from "obsidian";
 import { openCheckout, retryPendingSpendEvents, spendPage, syncBalance } from "./billing";
 import { combinePages, poll, stableHash, submit, SUPPORTED_EXTENSIONS } from "./ocr";
 import { DEFAULT_SETTINGS } from "./settings";
@@ -94,6 +94,11 @@ export default class GardaPlugin extends Plugin {
   /** Run one OCR action and either create a transcript or replace its embed target. */
   private async run(file: TFile, action: GardaAction, replacement?: EmbedTarget): Promise<void> {
     if (this.activeOperation) { new Notice("Garda: another OCR operation is already running."); return; }
+    const destination = action === "append" ? this.app.workspace.getActiveViewOfType(MarkdownView)?.file : null;
+    if (action === "append" && (!destination || destination.extension.toLowerCase() !== "md")) {
+      new Notice("Garda: open a Markdown note before appending a transcription.");
+      return;
+    }
     this.activeOperation = "single";
     try {
       if (action === "replace" && (!replacement || replacement.file.path !== file.path)) throw new Error("Place the cursor inside the embed you want to replace.");
@@ -102,8 +107,8 @@ export default class GardaPlugin extends Plugin {
       if (result.pages.some((page) => page.needsReview)) new Notice("Garda: low-confidence pages require manual review before destructive actions.");
       if (action === "replace" && result.pages.some((page) => page.needsReview)) return;
       if (action === "clipboard") await navigator.clipboard.writeText(text);
-      else if (action === "append") { const active = this.app.workspace.getActiveFile(); if (!active) throw new Error("No current note."); await this.app.vault.append(active, `\n\n${text}\n`); }
-      else if (action === "new-note") await this.app.vault.create(`${file.path.replace(/\.[^.]+$/, "")}.transcription.md`, `# Transcription: ${file.basename}\n\n${text}\n`);
+      else if (action === "append") { if (!destination) throw new Error("No Markdown note is open."); await this.app.vault.append(destination, `\n\n${text}\n`); }
+      else if (action === "new-note") await this.createTranscriptNote(file, text);
       else {
         if (!replacement) throw new Error("Place the cursor inside the embed you want to replace.");
         const currentLine = replacement.editor.getLine(replacement.from.line);
@@ -123,10 +128,14 @@ export default class GardaPlugin extends Plugin {
   /** Submit a file, poll until completion, and surface progress to the notice UI. */
   private async transcribe(file: TFile, onProgress?: (state: GardaJobResult) => void): Promise<GardaJobResult> {
     const bytes = await this.app.vault.readBinary(file);
+    if (bytes.byteLength > 20 * 1024 * 1024) throw new Error("This file exceeds the 20 MB OCR limit.");
     const hash = stableHash(bytes);
     const key = `${file.path}:${hash}`;
     const cached = this.settings.cache[key];
     if (cached) return { jobId: "cache", status: "completed", pages: cached.map((page) => ({ ...page, totalPages: cached.length })) };
+    if (!this.settings.billingAccountLinked || !this.settings.billingAccessToken) {
+      throw new Error("Sign in to your billing account in Garda settings before starting OCR.");
+    }
     const controller = new AbortController();
     this.abortController = controller;
     try {
@@ -161,7 +170,7 @@ export default class GardaPlugin extends Plugin {
         this.updateProgress(`Garda batch ${i + 1}/${files.length}: ${file.name}`);
         try {
           const result = await this.transcribe(file, (state) => this.updateProgress(`Garda batch ${i + 1}/${files.length}: ${file.name} — ${state.currentPage ? `processing page ${state.currentPage}` : state.status}...`));
-          await this.app.vault.create(`${file.path.replace(/\.[^.]+$/, "")}.transcription.md`, `# Transcription: ${file.basename}\n\n${combinePages(result.pages)}\n`);
+          await this.createTranscriptNote(file, combinePages(result.pages));
           completed++;
         } catch (error) {
           if (this.batchCancelRequested || (error instanceof Error && error.message === "Operation cancelled.")) break;
@@ -174,6 +183,12 @@ export default class GardaPlugin extends Plugin {
       this.batchCancelRequested = false;
       this.clearProgress();
     }
+  }
+  private async createTranscriptNote(file: TFile, text: string): Promise<TFile> {
+    const base = `${file.path.replace(/\.[^.]+$/, "")}.transcription`;
+    let path = `${base}.md`;
+    for (let suffix = 2; this.app.vault.getAbstractFileByPath(path); suffix++) path = `${base}-${suffix}.md`;
+    return this.app.vault.create(path, `# Transcription: ${file.basename}\n\n${text}\n`);
   }
   private cancelActiveOperation(): void {
     if (!this.activeOperation) { new Notice("Garda: no active OCR operation."); return; }

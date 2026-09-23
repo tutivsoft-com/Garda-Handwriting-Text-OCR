@@ -55,6 +55,8 @@ npm run build
 
 Garda adds image and PDF actions to supported editor and file-explorer menus, plus command-palette entries for clipboard extraction, appending, embed replacement, new-note extraction, and folder batches. The original image or PDF remains in the vault. Generated Markdown is indexed by Obsidian search.
 
+To append a transcription, keep a Markdown note open. Garda captures that note when the action starts, so switching notes while OCR runs does not send the result elsewhere. Creating a transcription note never overwrites an existing note; repeat runs receive a numbered filename.
+
 Supported inputs are JPG, PNG, GIF, BMP, TIFF, HEIC, WEBP, and PDF. Inputs are limited to 20 MB. PDFs are processed one page at a time. Unchanged files are served from a content-hash cache and do not consume another OCR credit.
 
 ## Privacy
