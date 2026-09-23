@@ -1,5 +1,9 @@
 # Changelog
 
+## 5.7.13 - 2026-09-23
+
+- Simplified Obsidian command palette labels by removing repeated plugin-name prefixes.
+
 ## 5.7.12 - 2026-09-21
 
 - Maintenance release for the current Constance billing integration audit.

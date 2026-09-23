@@ -33,12 +33,12 @@ export default class GardaPlugin extends Plugin {
     await this.saveSettings();
     this.registerEvent(this.app.workspace.on("file-menu", (menu, file) => { if (file instanceof TFile && this.isSupported(file)) this.addFileActions(menu, file); if (file instanceof TFolder) this.addFolderAction(menu, file); }));
     this.registerEvent(this.app.workspace.on("editor-menu", (menu, editor) => { const target = this.embedAtCursor(editor); if (target) this.addEditorActions(menu, target); }));
-    this.addCommand({ id: "extract-to-clipboard", name: "Garda: Extract handwriting to clipboard", callback: () => { void this.runActive("clipboard"); } });
-    this.addCommand({ id: "append-to-current-note", name: "Garda: Append handwriting to current note", callback: () => { void this.runActive("append"); } });
-    this.addCommand({ id: "replace-embed-with-text", name: "Garda: Replace handwriting embed with text", callback: () => { void this.runActive("replace"); } });
-    this.addCommand({ id: "extract-to-new-note", name: "Garda: Extract handwriting to new note", callback: () => { void this.runActive("new-note"); } });
-    this.addCommand({ id: "batch-extract-folder", name: "Garda: Batch extract folder", callback: () => { const folder = this.app.workspace.getActiveFile()?.parent; if (folder) void this.runFolder(folder); } });
-    this.addCommand({ id: "cancel-active-operation", name: "Garda: Cancel active OCR or batch", callback: () => this.cancelActiveOperation() });
+    this.addCommand({ id: "extract-to-clipboard", name: "Extract handwriting to clipboard", callback: () => { void this.runActive("clipboard"); } });
+    this.addCommand({ id: "append-to-current-note", name: "Append handwriting to current note", callback: () => { void this.runActive("append"); } });
+    this.addCommand({ id: "replace-embed-with-text", name: "Replace handwriting embed with text", callback: () => { void this.runActive("replace"); } });
+    this.addCommand({ id: "extract-to-new-note", name: "Extract handwriting to new note", callback: () => { void this.runActive("new-note"); } });
+    this.addCommand({ id: "batch-extract-folder", name: "Batch extract folder", callback: () => { const folder = this.app.workspace.getActiveFile()?.parent; if (folder) void this.runFolder(folder); } });
+    this.addCommand({ id: "cancel-active-operation", name: "Cancel active OCR or batch", callback: () => this.cancelActiveOperation() });
     this.addSettingTab(new GardaSettingTab(this.app, this));
     void syncBalance(this).then(() => retryPendingSpendEvents(this));
   }

@@ -1,3 +1,7 @@
+# Release 5.7.13
+
+- Simplified Obsidian command palette labels by removing repeated plugin-name prefixes.
+
 # Release Notes
 
 ## 5.7.12 - 2026-09-21
