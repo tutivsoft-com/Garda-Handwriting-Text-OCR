@@ -1,7 +1,7 @@
 {
   "id": "garda-handwriting-text-ocr",
   "name": "Garda Handwriting Text OCR",
-  "version": "5.7.18",
+  "version": "5.7.21",
   "minAppVersion": "1.5.0",
   "description": "Transcribe handwriting in images and PDFs into searchable Markdown.",
   "author": "TutivSoft",

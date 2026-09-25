@@ -10,6 +10,7 @@ export class GardaSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
+    this.plugin.support.addDiagnosticsSetting(containerEl);
     containerEl.createEl("h2", { text: "Garda Handwriting Text OCR" });
     new Setting(containerEl).setName("Setup").setHeading();
     const setupStatus = containerEl.createEl("p", { cls: "garda-setup-status" });

@@ -67,3 +67,7 @@ acceptable to you.
 ## Troubleshooting
 
 If **Test connection** fails, verify the backend URL, HTTPS certificate, API key, and network access. If a PDF page is marked low quality, inspect the original image and correct the resulting Markdown manually. A backend restart can interrupt in-progress jobs, so retry only after checking whether a transcription note was created.
+
+## Diagnostics
+
+For troubleshooting, open Garda settings and choose Copy full log, or run Copy full debug log from the command palette. The copied log contains up to the latest 1,000 Garda events since the most recent plugin load. It excludes note contents, file paths, credentials, and raw error messages. Logs reset when Garda reloads.

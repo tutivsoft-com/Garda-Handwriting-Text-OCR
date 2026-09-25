@@ -2,9 +2,9 @@
 
 Garda Handwriting Text OCR is an Obsidian plugin for turning handwritten notes into searchable text inside Obsidian. V1 uses a Garda SaaS OCR backend and the existing TutivSoft Constance credit system.
 
-Version: `5.7.18` · [Complete user guide](./docs/USER_GUIDE.md)
+Version: `5.7.21` · [Complete user guide](./docs/USER_GUIDE.md)
 
-Product documentation: [FEATURES.md](./FEATURES.md), [REQUIREMENTS.md](./REQUIREMENTS.md), [architecture.md](./architecture.md), and [MARKETING.md](./MARKETING.md).
+Setup and troubleshooting: [Complete user guide](./docs/USER_GUIDE.md).
 
 ## What Garda does
 
@@ -14,17 +14,11 @@ Each successfully processed page consumes one OCR credit. The plugin offers 20-,
 
 ## Status
 
-The source repository contains the Obsidian plugin, tests, and FastAPI backend. The public release repository contains the reviewable plugin TypeScript source and runtime bundle; it does not contain the private backend implementation.
+This curated TutivSoft release repository is the repository mapped to the Obsidian Community listing. It contains the runtime assets, public metadata, user guide, attestation workflow, and the exact eight-file TypeScript dependency closure required to review the plugin. The complete source, backend, tests, and internal documentation remain in the private main repository.
 
 ## Installation
 
-Build the plugin, then copy `publish/main.js`, `manifest.json`, and `styles.css` into the Obsidian plugin directory. The backend is deployed separately as a FastAPI service from `backend/app.py`.
-
-```text
-npm install
-npm run build
-```
-
+Install Garda from the Obsidian Community plugin browser, or copy main.js, manifest.json, and styles.css into .obsidian/plugins/garda-handwriting-text-ocr/ and enable it under Community plugins. Configure the Garda backend URL and API key in plugin settings, then use Test connection before processing a document.
 ## Usage
 
 Garda adds image and PDF actions to supported editor and file-explorer menus, plus command-palette entries for clipboard extraction, appending, embed replacement, new-note extraction, and folder batches. The original image or PDF remains in the vault. Generated Markdown is indexed by Obsidian search.
@@ -56,6 +50,9 @@ fallback. Paddle webhook fulfillment remains authoritative; after completing
 payment in the browser, use **Refresh** in Garda settings. Garda has no shared
 billing secret, signed callback endpoint, or raw-body/HMAC callback handler.
 
+## Diagnostics
+
+Use Copy full log in Garda settings or Copy full debug log from the command palette when reporting a problem. Garda copies up to the latest 1,000 plugin events since load; it excludes note contents, file paths, credentials, and raw error messages. The log resets when the plugin reloads.
 ## Limitations
 
 Remote OCR requires a configured Garda backend and API key. Recognition quality varies with handwriting, image quality, page layout, and legibility. Low-confidence output should be reviewed before it is treated as authoritative.
