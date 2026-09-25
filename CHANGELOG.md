@@ -1,5 +1,10 @@
 # Changelog
 
+## 5.7.18 (2026-09-25)
+
+- Synchronized version metadata and the packaged runtime across the source and public release repositories.
+
+
 ## 5.7.14 - 2026-09-24
 
 - Corrected the plugin description and refreshed the feature, requirements, architecture, and marketing docs to match the current backend model, data flow, limits, and privacy boundary.

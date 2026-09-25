@@ -1,5 +1,10 @@
-# Release 5.7.14
+# Release Notes
 
+## 5.7.18 - 2026-09-25
+
+- Synchronized version metadata and the packaged runtime across the source and public release repositories.
+
+## Release 5.7.14
 - Updated product documentation and the plugin description to reflect the current OCR backend, quality flags, retention, supported formats, and remote-processing boundary. No OCR runtime behavior changed.
 
 # Release 5.7.13
