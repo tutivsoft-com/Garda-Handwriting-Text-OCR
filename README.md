@@ -49,3 +49,6 @@ Remote OCR requires a configured Garda backend and API key. Recognition quality 
 ## License
 
 Garda is distributed under the MIT license. The backend uses its runtime dependencies' respective licenses.
+
+
+Billing account recovery: use **Forgot password?** in settings to open the central reset page. Sign-out clears saved tokens and requests server session revocation. After registration, verify your email before signing in.

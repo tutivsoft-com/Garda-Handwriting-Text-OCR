@@ -62,7 +62,7 @@ async function authenticate(
   }
   const accessToken = String(response.json?.access_token || "");
   if (!accessToken) {
-    if (response.json?.verification_required) throw new Error("Constance requires email verification before this account can sign in.");
+    if (response.json?.verification_required) throw new Error("Account created. Verify the billing email, then sign in.");
     throw new Error("Constance did not return an account token.");
   }
   return { accessToken, refreshToken: String(response.json?.refresh_token || "") };
@@ -120,7 +120,20 @@ export async function signInBillingAccount(
   if (!email || !email.includes("@")) throw new Error("Enter a valid billing email.");
   if (password.length < 8) throw new Error("Password must contain at least 8 characters.");
   if (!adapter.installationId) throw new Error("The plugin installation ID is not ready.");
-  const tokens = await authenticate(mode, email, password, adapter.installationId);
+  let tokens;
+  try {
+    tokens = await authenticate(mode, email, password, adapter.installationId);
+  } catch (error) {
+    if (mode === "register" && error instanceof Error && error.message.startsWith("Account created. Verify")) {
+      adapter.state.billingEmail = email;
+      adapter.state.billingAccessToken = "";
+      adapter.state.billingRefreshToken = "";
+      adapter.state.billingAccountLinked = false;
+      adapter.state.billingRegistrationPending = true;
+      await adapter.persist();
+    }
+    throw error;
+  }
   await linkInstallation(adapter, tokens.accessToken);
   adapter.state.billingEmail = email;
   adapter.state.billingAccessToken = tokens.accessToken;
@@ -129,6 +142,33 @@ export async function signInBillingAccount(
   adapter.state.billingRegistrationPending = false;
   await adapter.persist();
   await adapter.syncBalance();
+}
+
+export async function signOutBillingAccount(adapter: ConstanceAccountAdapter): Promise<void> {
+  const refreshToken = adapter.state.billingRefreshToken;
+  const accessToken = adapter.state.billingAccessToken;
+  try {
+    if (refreshToken || accessToken) {
+      await requestUrl({
+        url: `${CONSTANCE_ACCOUNT_BASE_URL}/api/v1/auth/logout`,
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({ refresh_token: refreshToken || undefined }),
+        throw: false,
+      });
+    }
+  } catch (error) {
+    console.warn("Constance account logout could not reach the server", error);
+  } finally {
+    adapter.state.billingAccessToken = "";
+    adapter.state.billingRefreshToken = "";
+    adapter.state.billingAccountLinked = false;
+    adapter.state.billingRegistrationPending = false;
+    await adapter.persist();
+  }
 }
 
 export async function validateBillingSession(adapter: ConstanceAccountAdapter): Promise<boolean> {
@@ -282,13 +322,17 @@ export function addBillingAccountSettings(containerEl: HTMLElement, adapter: Con
         button.setDisabled(false);
       }
     }))
-    .addButton((button) => button.setButtonText("Sign out").setDisabled(!adapter.state.billingAccessToken).onClick(async () => {
-      adapter.state.billingAccessToken = "";
-      adapter.state.billingAccountLinked = false;
-      state.billingRegistrationPending = false;
-      await adapter.persist();
+    .addButton((button) => button.setButtonText("Sign out").setDisabled(!adapter.state.billingAccessToken && !adapter.state.billingRefreshToken).onClick(async () => {
+      await signOutBillingAccount(adapter);
       new Notice("Signed out.");
       adapter.refresh?.();
+    }));
+
+  new Setting(section)
+    .setName("Forgot password?")
+    .setDesc("Reset your Constance billing password in the browser.")
+    .addButton((button) => button.setButtonText("Open reset page").onClick(() => {
+      window.open(`${CONSTANCE_ACCOUNT_BASE_URL}/password-reset`, "_blank", "noopener");
     }));
 
   const firstHeading = containerEl.querySelector(":scope > h1, :scope > h2");
