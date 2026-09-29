@@ -60,3 +60,5 @@ Remote OCR requires a configured Garda backend and API key. Recognition quality 
 ## License
 
 Garda is distributed under the MIT license. The backend uses its runtime dependencies' respective licenses.
+
+Billing account recovery: use **Forgot password?** in the plugin settings to open the Constance reset page. Signing out clears the local tokens and requests server session revocation.
