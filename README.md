@@ -2,19 +2,20 @@
 
 Garda Handwriting Text OCR is an Obsidian plugin for turning handwritten notes into searchable text inside Obsidian. V1 uses a Garda SaaS OCR backend and the existing TutivSoft Constance credit system.
 
-Version: `5.7.21` · [Complete user guide](./docs/USER_GUIDE.md)
+Version: `5.7.26` · [Complete user guide](./docs/USER_GUIDE.md)
 
 Setup and troubleshooting: [Complete user guide](./docs/USER_GUIDE.md).
 
 ## What Garda does
 
-Garda is an Obsidian plugin that turns a user-selected handwritten image or PDF into Markdown text. It sends the selected file to the configured Garda backend, which preprocesses pages and forwards them to the OCR model configured in the backend. The current backend source uses OpenRouter Chat Completions with `~deepseek/deepseek-v4-flash-latest`; the model is controlled by the backend, not by plugin settings.
+Garda is an Obsidian plugin that turns a user-selected handwritten image or PDF into Markdown text. It sends the selected file to the configured Garda backend, which preprocesses pages and forwards them to the OCR model configured in the backend. The configured OCR service processes each selected file and returns searchable Markdown; the OCR provider is configured by the service.
 
 Each successfully processed page consumes one OCR credit. The plugin offers 20-, 160-, and 640-page packs through Constance; checkout shows the current price. Unchanged files can be served from the local cache without another OCR request or credit spend.
 
 ## Status
 
-This curated TutivSoft release repository is the repository mapped to the Obsidian Community listing. It contains the runtime assets, public metadata, user guide, attestation workflow, and the exact eight-file TypeScript dependency closure required to review the plugin. The complete source, backend, tests, and internal documentation remain in the private main repository.
+Garda is available from the Obsidian Community plugin browser. For setup and troubleshooting, see the [complete user guide](./docs/USER_GUIDE.md).
+
 
 ## Installation
 
@@ -33,22 +34,10 @@ OCR is explicit and user initiated. The selected vault file is sent over HTTPS t
 
 Low-quality pages are marked for manual review and cannot be used for destructive embed replacement without review.
 
-## Billing And Model
+## Billing
 
-Garda uses the account-linked TutivSoft Constance credit system. Sign in or
-create a Constance account in plugin settings; Garda links a stable local
-installation ID and polls the account-owned entitlement snapshot for the live
-balance. One OCR credit is consumed for each successfully processed page, and
-the same persisted event ID is reused if a spend response is interrupted.
+Garda uses Constance account-linked credits. Sign in or create an account in plugin settings to view your balance and purchase credit packs. One credit is used for each successfully processed page; current prices are shown during checkout.
 
-The 20-, 160-, and 640-page one-time packs use Constance catalog plan codes
-`standard`, `pro`, and `ultimate`; the current price is returned by Constance.
-Checkout is created through the authenticated Constance
-checkout endpoint with an idempotency key, which lets the server resolve the
-current Paddle price. The legacy `/buy` URL is retained only as a compatibility
-fallback. Paddle webhook fulfillment remains authoritative; after completing
-payment in the browser, use **Refresh** in Garda settings. Garda has no shared
-billing secret, signed callback endpoint, or raw-body/HMAC callback handler.
 
 ## Diagnostics
 
