@@ -118,7 +118,7 @@ export async function signInBillingAccount(
 ): Promise<void> {
   const email = adapter.state.billingEmail.trim().toLowerCase();
   if (!email || !email.includes("@")) throw new Error("Enter a valid billing email.");
-  if (password.length < 8) throw new Error("Password must contain at least 8 characters.");
+  if (Array.from(password).length < 8 || Array.from(password).length > 128) throw new Error("Password must be between 8 and 128 characters.");
   if (!adapter.installationId) throw new Error("The plugin installation ID is not ready.");
   let tokens;
   try {
@@ -282,8 +282,9 @@ export function addBillingAccountSettings(containerEl: HTMLElement, adapter: Con
 
   new Setting(section)
     .setName("Email")
-    .setDesc("Used to register, sign in, restore purchases, and open checkout.")
-    .addText((text) => text.setPlaceholder("you@example.com").setValue(adapter.state.billingEmail).onChange(async (value) => {
+    .setDesc(adapter.state.billingAccountLinked ? "Sign out before changing accounts." : "Used to register, sign in, restore purchases, and open checkout.")
+    .addText((text) => text.setPlaceholder("you@example.com").setValue(adapter.state.billingEmail).setDisabled(adapter.state.billingAccountLinked).onChange(async (value) => {
+      if (adapter.state.billingAccountLinked) return;
       adapter.state.billingEmail = value.trim();
       await adapter.persist();
     }));
@@ -292,7 +293,8 @@ export function addBillingAccountSettings(containerEl: HTMLElement, adapter: Con
     .setDesc("Used only for this request. The plugin never saves your password.")
     .addText((text) => {
       text.inputEl.type = "password";
-      text.setPlaceholder("At least 8 characters").onChange((value) => { password = value; });
+      text.inputEl.maxLength = 256;
+      text.setPlaceholder("8 to 128 characters").onChange((value) => { password = value; });
     });
   new Setting(section)
     .setName("Account")
