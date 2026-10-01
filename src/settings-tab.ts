@@ -1,4 +1,5 @@
-import { PluginSettingTab, Setting } from "obsidian";
+import { gatewayFor, addLivePacks } from "./preview-gateway";
+import { Notice, PluginSettingTab, Setting } from "obsidian";
 import type GardaPlugin from "./main";
 import { openCheckout, syncBalance } from "./billing";
 import { getConfigurationError, validateConnection } from "./ocr";
@@ -6,26 +7,44 @@ import { addBillingAccountSettings } from "./constance-account";
 
 export class GardaSettingTab extends PluginSettingTab {
   constructor(app: ConstructorParameters<typeof PluginSettingTab>[0], private readonly plugin: GardaPlugin) { super(app, plugin); }
-  /** Render setup guidance first, with advanced controls below the safe path. */
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
-    this.plugin.support.addDiagnosticsSetting(containerEl);
     containerEl.createEl("h2", { text: "Garda Handwriting Text OCR" });
-    new Setting(containerEl).setName("Setup").setHeading();
+    new Setting(containerEl).setName("Settings mode").setDesc("Simple shows everyday controls. Advanced adds customization and troubleshooting.")
+      .addDropdown(dropdown => dropdown.addOption("simple", "Simple").addOption("advanced", "Advanced")
+        .setValue(this.plugin.settings.settingsMode).onChange(async value => {
+          this.plugin.settings.settingsMode = value === "advanced" ? "advanced" : "simple";
+          await this.plugin.saveSettings(); this.display();
+        }));
+    containerEl.createEl("p", { text: "Select an image or PDF, then choose a Garda extraction command. Clipboard and new-note commands preserve the original. Each processed page uses one OCR credit." });
     const setupStatus = containerEl.createEl("p", { cls: "garda-setup-status" });
-    const updateSetupStatus = (message?: string): void => { setupStatus.textContent = message ?? (getConfigurationError(this.plugin) || "Configuration looks complete. Test the connection before your first scan."); };
-    updateSetupStatus();
-    new Setting(containerEl).setName("Connection").setDesc("Check the backend and API key without uploading a file.").addButton((button) => button.setButtonText("Test connection").setCta().onClick(async () => { button.setDisabled(true); updateSetupStatus("Checking Garda connection…"); try { await validateConnection(this.plugin); updateSetupStatus("Connected. Garda is ready for OCR."); } catch (error) { updateSetupStatus(error instanceof Error ? error.message : "Connection check failed."); } finally { button.setDisabled(false); } }));
-    new Setting(containerEl).setName("Garda backend URL").setDesc("HTTPS endpoint used for remote OCR.").addText((text) => text.setPlaceholder("https://…").setValue(this.plugin.settings.backendUrl).onChange(async (value) => { this.plugin.settings.backendUrl = value.trim().replace(/\/$/, ""); await this.plugin.saveSettings(); updateSetupStatus(); }));
-    new Setting(containerEl).setName("Garda API key").setDesc("Stored in Obsidian plugin data and sent only to the configured Garda backend.").addText((text) => { text.inputEl.type = "password"; text.setPlaceholder("garda-...").setValue(this.plugin.settings.apiKey).onChange(async (value) => { this.plugin.settings.apiKey = value.trim(); await this.plugin.saveSettings(); updateSetupStatus(); }); });
+    const updateStatus = (message?: string): void => { setupStatus.setText(message ?? (getConfigurationError(this.plugin) || "Signed in. Test the managed connection before your first scan.")); };
+    updateStatus();
     addBillingAccountSettings(containerEl, { state: this.plugin.settings, appId: "garda-handwriting-text-ocr", installationId: this.plugin.settings.constanceDeviceId, appVersion: this.plugin.manifest.version, persist: () => this.plugin.saveSettings(), syncBalance: () => syncBalance(this.plugin), refresh: () => this.display() });
-    new Setting(containerEl).setName("OCR credits").setDesc(`Available credits: ${this.plugin.settings.cachedBalance}`).addButton((button) => button.setButtonText("Refresh").onClick(() => { void syncBalance(this.plugin).then(() => this.display()); }));
-    new Setting(containerEl).setName("20-page pack").setDesc("$1 one-time purchase").addButton((button) => button.setButtonText("Buy").setCta().onClick(() => { void openCheckout(this.plugin, "pages20"); }));
-    new Setting(containerEl).setName("160-page pack").setDesc("$5 one-time purchase").addButton((button) => button.setButtonText("Buy").setCta().onClick(() => { void openCheckout(this.plugin, "pages160"); }));
-    new Setting(containerEl).setName("640-page pack").setDesc("$15 one-time purchase").addButton((button) => button.setButtonText("Buy").setCta().onClick(() => { void openCheckout(this.plugin, "pages640"); }));
-    new Setting(containerEl).setName("Privacy").setHeading();
-    containerEl.createEl("p", { text: "OCR uploads the selected vault file to the configured Garda backend, which sends the page to its configured OCR model. Garda does not train models on images, text, or metadata, does not collect unrelated telemetry, and deletes uploaded data and derived page images after the configured retention window. The original vault file is never modified unless you explicitly choose Replace embed." });
-    containerEl.createEl("p", { text: "The OCR model is selected by the Garda backend. Each processed page consumes one Constance OCR credit." });
+    const balance = new Setting(containerEl).setName("OCR credits");
+    const updateBalance = () => balance.setDesc(`${this.plugin.settings.cachedBalance.toLocaleString()} pages available for your account.`);
+    updateBalance();
+    balance.addButton(button => button.setButtonText("Refresh balance").onClick(async () => {
+      button.setDisabled(true); button.setButtonText("Refreshing…");
+      try { await syncBalance(this.plugin, true); updateBalance(); }
+      catch (error) { new Notice(error instanceof Error ? error.message : "Could not refresh balance. Try again."); }
+      finally { button.setDisabled(false); button.setButtonText("Refresh balance"); }
+    }));
+    addLivePacks(containerEl,gatewayFor(this.plugin.settings));
+    new Setting(containerEl).setName("Managed connection").setDesc("Checks the OCR provider and your account session without uploading an attachment.")
+      .addButton(button => button.setButtonText("Test connection").onClick(async () => {
+        button.setDisabled(true); updateStatus("Checking managed OCR service…");
+        try { await validateConnection(this.plugin); updateStatus("Connected. Garda is ready for OCR."); }
+        catch (error) { updateStatus(error instanceof Error ? error.message : "Connection check failed. Try again."); }
+        finally { button.setDisabled(false); }
+      }));
+    containerEl.createEl("p", { text: "OCR sends only the attachment you select to Constance for authorized server-side OCR. Review extracted text before relying on it. Replace embed is blocked when a page needs manual review." });
+    void syncBalance(this.plugin).then(updateBalance).catch(() => {});
+    if (this.plugin.settings.settingsMode !== "advanced") return;
+    new Setting(containerEl).setName("Service and privacy").setHeading();
+    new Setting(containerEl).setName("Managed OCR service").setDesc("Garda chooses the model and uses its own provider key. Constance manages your account and credits; no personal API key or custom endpoint is needed.");
+    containerEl.createEl("p", { text: "Images and PDF pages are prepared locally and sent to Constance for authorized server-side OCR. Completed results are cached locally for unchanged attachments." });
+    this.plugin.support.addDiagnosticsSetting(containerEl);
   }
 }

@@ -1,72 +1,61 @@
+import { gatewayFor, managedText } from "./preview-gateway";
 import { requestUrl } from "obsidian";
 import type GardaPlugin from "./main";
 import type { GardaJobResult, GardaPageResult } from "./types";
-
+import { refreshBillingSession } from "./constance-account";
+import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
+// @ts-ignore PDF.js worker has no published declaration; bundle it for local rendering.
+import * as pdfWorker from "pdfjs-dist/legacy/build/pdf.worker.mjs";
+(globalThis as any).pdfjsWorker = pdfWorker;
+export const MODEL = "deepseek/deepseek-v4-flash-vision-exp";
+const PROMPT = "Transcribe exactly as visible. Preserve line breaks, headings, lists, dates and punctuation. Do not summarize, correct or invent text. Use [illegible] for unreadable text. Return plain text only.";
 export const SUPPORTED_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "bmp", "tiff", "tif", "heic", "webp", "pdf"]);
-
-/** Return a friendly setup message before any network request is attempted. */
 export function getConfigurationError(plugin: GardaPlugin): string | null {
-  const backendUrl = plugin.settings.backendUrl.trim();
-  if (!backendUrl) return "Enter the Garda backend URL in plugin settings.";
-  if (!plugin.settings.apiKey.trim()) return "Enter your Garda API key in plugin settings.";
-  try {
-    const url = new URL(backendUrl);
-    const localHttp = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
-    if (url.protocol !== "https:" && !(url.protocol === "http:" && localHttp)) {
-      return "The Garda backend URL must use HTTPS.";
-    }
-  } catch {
-    return "Enter a valid Garda backend URL in plugin settings.";
-  }
-  return null;
+ return plugin.settings.billingAccountLinked && (plugin.settings.billingAccessToken || plugin.settings.billingRefreshToken) ? null : "Connect your billing account in settings to use OCR.";
 }
-
-/** Verify the backend is reachable and the configured bearer token is accepted. */
-export async function validateConnection(plugin: GardaPlugin): Promise<void> {
-  const configurationError = getConfigurationError(plugin);
-  if (configurationError) throw new Error(configurationError);
-  const baseUrl = plugin.settings.backendUrl.trim().replace(/\/$/, "");
-  const health = await requestUrl({ url: `${baseUrl}/health`, method: "GET", throw: false });
-  if (health.status < 200 || health.status >= 300) throw new Error(`Garda health check failed (HTTP ${health.status}).`);
-
-  const authProbe = await requestUrl({
-    url: `${baseUrl}/v1/ocr/jobs/garda-setup-check`,
-    method: "GET",
-    throw: false,
-    headers: { Authorization: `Bearer ${plugin.settings.apiKey.trim()}` },
-  });
-  if (authProbe.status === 401 || authProbe.status === 403) throw new Error("The Garda API key was rejected.");
-  if (authProbe.status !== 404 && (authProbe.status < 200 || authProbe.status >= 300)) {
-    throw new Error(`Garda API check failed (HTTP ${authProbe.status}).`);
-  }
+async function verifyAccount(plugin: GardaPlugin): Promise<void> {
+ const error=getConfigurationError(plugin); if(error) throw new Error(error);
+ const send=()=>requestUrl({url:`https://app.tutivsoft.com/api/v1/billing/entitlements/me?app_id=garda-handwriting-text-ocr&installation_id=${encodeURIComponent(plugin.settings.constanceDeviceId)}`,headers:{Authorization:`Bearer ${plugin.settings.billingAccessToken}`},throw:false});
+ if(!plugin.settings.billingAccessToken && !await refreshBillingSession(plugin.settings,()=>plugin.saveSettings())) throw new Error("Connect your billing account again.");
+ let response=await send();
+ if(response.status===401 && await refreshBillingSession(plugin.settings,()=>plugin.saveSettings())) response=await send();
+ if(response.status!==200) throw new Error(`Account verification failed (HTTP ${response.status}). Try again.`);
 }
-
-export function contentType(extension: string): string {
-  return ({ jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif", bmp: "image/bmp", tiff: "image/tiff", tif: "image/tiff", heic: "image/heic", webp: "image/webp", pdf: "application/pdf" } as Record<string, string>)[extension.toLowerCase()] || "application/octet-stream";
+export async function validateConnection(plugin: GardaPlugin): Promise<void> { await verifyAccount(plugin); }
+function checkAbort(signal: AbortSignal): void {if(signal.aborted) throw new Error("Operation cancelled.");}
+async function abortable<T>(promise: Promise<T>,signal:AbortSignal):Promise<T>{
+ checkAbort(signal);
+ return new Promise((resolve,reject)=>{const cancel=()=>reject(new Error("Operation cancelled."));signal.addEventListener("abort",cancel,{once:true});promise.then(resolve,reject).finally(()=>signal.removeEventListener("abort",cancel));});
 }
-
-/** Submit source bytes with a stable hash so retries can be deduplicated safely. */
-export async function submit(plugin: GardaPlugin, sourceId: string, hash: string, name: string, bytes: ArrayBuffer): Promise<GardaJobResult> {
-  const configurationError = getConfigurationError(plugin);
-  if (configurationError) throw new Error(configurationError);
-  const response = await requestUrl({ url: `${plugin.settings.backendUrl}/v1/ocr/jobs`, method: "POST", throw: false, headers: { "Content-Type": "application/json", Authorization: `Bearer ${plugin.settings.apiKey}` }, body: JSON.stringify({ source_id: sourceId, content_hash: hash, filename: name, mime_type: contentType(name.split(".").pop() || ""), data: arrayBufferToBase64(bytes) }) });
-  if (response.status < 200 || response.status >= 300) throw new Error(response.json?.detail || `Garda backend returned HTTP ${response.status}`);
-  return response.json as GardaJobResult;
+async function imageData(bytes:ArrayBuffer):Promise<string>{
+ const url=URL.createObjectURL(new Blob([bytes]));
+ try{const image=new Image();image.src=url;await image.decode();const scale=Math.min(1,2400/Math.max(image.width,image.height));
+ const canvas=document.createElement("canvas");canvas.width=Math.max(1,Math.round(image.width*scale));canvas.height=Math.max(1,Math.round(image.height*scale));
+ const ctx=canvas.getContext("2d");if(!ctx)throw new Error("Image processing unavailable.");ctx.fillStyle="white";ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(image,0,0,canvas.width,canvas.height);return canvas.toDataURL("image/jpeg",0.82);
+ }catch{throw new Error("Cannot decode this image. Convert unsupported HEIC/TIFF files to PNG or JPEG first.");}finally{URL.revokeObjectURL(url);}
 }
+export async function transcribeDirect(plugin:GardaPlugin,name:string,bytes:ArrayBuffer,onProgress:(state:GardaJobResult)=>void,signal:AbortSignal):Promise<GardaJobResult>{
+ if(bytes.byteLength>20*1024*1024)throw new Error("This file exceeds the 20 MB OCR limit.");
 
-/** Poll one OCR job, cancelling it on user abort and returning its terminal state. */
-export async function poll(plugin: GardaPlugin, jobId: string, onProgress: (result: GardaJobResult) => void, signal: AbortSignal): Promise<GardaJobResult> {
-  while (true) {
-    if (signal.aborted) { await requestUrl({ url: `${plugin.settings.backendUrl}/v1/ocr/jobs/${jobId}/cancel`, method: "POST", throw: false, headers: { Authorization: `Bearer ${plugin.settings.apiKey}` } }); throw new Error("Operation cancelled."); }
-    const response = await requestUrl({ url: `${plugin.settings.backendUrl}/v1/ocr/jobs/${jobId}`, method: "GET", throw: false, headers: { Authorization: `Bearer ${plugin.settings.apiKey}` } });
-    if (response.status < 200 || response.status >= 300) throw new Error(`Polling failed: HTTP ${response.status}`);
-    const result = response.json as GardaJobResult;
-    onProgress(result);
-    if (["completed", "failed", "cancelled"].includes(result.status)) return result;
-    await new Promise((resolve) => window.setTimeout(resolve, 1200));
-  }
+ let pdf:pdfjs.PDFDocumentProxy|undefined; let loading:pdfjs.PDFDocumentLoadingTask|undefined;const job:GardaJobResult={jobId:`local-${Date.now()}`,status:"processing",pages:[]};
+ try{
+ if(name.toLowerCase().endsWith(".pdf")){loading=pdfjs.getDocument({data:new Uint8Array(bytes.slice(0)),useSystemFonts:true}); pdf=await abortable(loading.promise,signal);}
+ const total=pdf?.numPages??1;if(!total)throw new Error("PDF contains no pages.");
+ for(let index=1;index<=total;index++){
+ checkAbort(signal);job.currentPage=index;onProgress({...job,pages:[...job.pages]});
+ try{let data:string;
+ if(pdf){const page=await pdf.getPage(index);const size=page.getViewport({scale:1});const viewport=page.getViewport({scale:Math.min(2,2400/Math.max(size.width,size.height))});
+ const canvas=document.createElement("canvas");canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);const render=page.render({canvas,viewport});const cancel=()=>render.cancel();signal.addEventListener("abort",cancel,{once:true});try{await render.promise;}finally{signal.removeEventListener("abort",cancel);page.cleanup();}data=canvas.toDataURL("image/jpeg",0.82);canvas.width=canvas.height=0;
+ }else data=await abortable(imageData(bytes),signal);
+ checkAbort(signal);
+ const text=await abortable(managedText(gatewayFor(plugin.settings),"","ocr",{pages:1},data),signal);
+ if(!text)throw new Error("OCR returned no text.");
+ const quality=text.toLowerCase().includes("[illegible]")||text.length<3?"low":text.length<20?"medium":"high";job.pages.push({page:index,totalPages:total,text,quality,needsReview:quality!=="high"});
+ }catch(error){checkAbort(signal);job.pages.push({page:index,totalPages:total,text:"",quality:"low",needsReview:true,failed:true,error:error instanceof Error?error.message:"OCR failed."});}
+ onProgress({...job,pages:[...job.pages]});
+ }job.status=job.pages.some(page=>!page.failed)?"completed":"failed";return job;
+ }finally{await loading?.destroy();}
 }
-
 export function stableHash(bytes: ArrayBuffer): string {
   const view = new Uint8Array(bytes); let hash = 2166136261;
   for (const byte of view) { hash ^= byte; hash = Math.imul(hash, 16777619); }

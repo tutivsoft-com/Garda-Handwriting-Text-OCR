@@ -1,3 +1,5 @@
+import { resumeAccountCheckout } from "./billing-checkout";
+import { openAccountCheckout } from "./billing-checkout";
 import { Notice, requestUrl } from "obsidian";
 import type GardaPlugin from "./main";
 import { refreshBillingSession, spendAccountCredits } from "./constance-account";
@@ -31,8 +33,12 @@ export async function retryPendingSpendEvents(plugin: GardaPlugin): Promise<void
   }
 }
 
-export async function syncBalance(plugin: GardaPlugin): Promise<void> {
+export async function syncBalance(plugin: GardaPlugin, manual = false): Promise<void> {
+  resumeAccountCheckout({ state: plugin.settings, appId: APP_ID, installationId: plugin.settings.constanceDeviceId,
+    persist: () => plugin.saveSettings(), syncBalance: () => syncBalance(plugin), refreshSession: () => refreshBillingSession(plugin.settings, () => plugin.saveSettings()) });
+
   if (!plugin.settings.constanceDeviceId) return;
+  if (!plugin.settings.billingAccountLinked) { if (manual) throw new Error("Connect your billing account before refreshing credits."); return; }
   try {
     let response = await requestUrl({
       url: `${BASE_URL}/api/v1/billing/entitlements/me?${new URLSearchParams({ app_id: APP_ID, installation_id: plugin.settings.constanceDeviceId }).toString()}`, method: "GET", throw: false,
@@ -47,8 +53,9 @@ export async function syncBalance(plugin: GardaPlugin): Promise<void> {
     if (response.status >= 200 && response.status < 300) {
       plugin.settings.cachedBalance = Math.max(0, Number(response.json?.data?.credits?.balance) || 0);
       await plugin.saveSettings();
-    }
+    } else if (manual) throw new Error("Could not refresh OCR credits. Check your connection and account, then try again.");
   } catch (error) {
+    if (manual) throw error;
     console.warn("Garda: Constance balance sync failed", error);
   }
 }
@@ -82,46 +89,8 @@ export async function spendPage(plugin: GardaPlugin, amount = 1, stableEventId =
 }
 
 export async function openCheckout(plugin: GardaPlugin, pack: keyof typeof GARDA_PLAN_CODES): Promise<void> {
-  if (!plugin.settings.billingAccessToken || !plugin.settings.billingAccountLinked) { new Notice("Sign in or create a billing account in Garda settings before buying credits."); return; }
-  if (!plugin.settings.constanceDeviceId) { new Notice("Garda: the billing installation ID is not ready yet."); return; }
-  const idempotencyKey = eventId();
-  try {
-    let response = await requestUrl({
-      url: `${BASE_URL}/api/v1/billing/checkout`,
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${plugin.settings.billingAccessToken}`, "Idempotency-Key": idempotencyKey },
-      body: JSON.stringify({ app_id: APP_ID, plan_code: GARDA_PLAN_CODES[pack], installation_id: plugin.settings.constanceDeviceId, quantity: 1, coupon_code: null }),
-      throw: false,
-    });
-    if (response.status === 401 && await refreshBillingSession(plugin.settings, () => plugin.saveSettings())) {
-      response = await requestUrl({
-        url: `${BASE_URL}/api/v1/billing/checkout`,
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${plugin.settings.billingAccessToken}`, "Idempotency-Key": idempotencyKey },
-        body: JSON.stringify({ app_id: APP_ID, plan_code: GARDA_PLAN_CODES[pack], installation_id: plugin.settings.constanceDeviceId, quantity: 1, coupon_code: null }),
-        throw: false,
-      });
-    }
-    const checkoutUrl = String(response.json?.data?.checkout_url || "");
-    if (response.status >= 200 && response.status < 300 && checkoutUrl) {
-      window.open(checkoutUrl, "_blank");
-      new Notice("Complete payment in the browser, then refresh Garda credits.");
-      return;
-    }
-    if (response.status >= 200 && response.status < 300) {
-      const params = new URLSearchParams({ app_id: APP_ID, price_id: LEGACY_PRICE_IDS[pack], email: plugin.settings.billingEmail.trim(), external_customer_id: plugin.settings.constanceDeviceId });
-      window.open(`${BASE_URL}/buy?${params.toString()}`, "_blank");
-      new Notice("Garda opened the compatibility checkout. Refresh credits after payment.");
-      return;
-    }
-    if (response.status === 401 || response.status === 403 || response.status === 404) {
-      if (response.status === 401) { plugin.settings.billingAccessToken = ""; plugin.settings.billingRefreshToken = ""; plugin.settings.billingAccountLinked = false; await plugin.saveSettings(); }
-      new Notice("Garda: the billing session or installation is no longer valid. Sign in again.");
-      return;
-    }
-    new Notice(`Garda checkout could not be started (HTTP ${response.status}). Try again later.`);
-  } catch (error) {
-    console.warn("Garda authenticated checkout status is unknown", error);
-    new Notice("Garda could not confirm the checkout request. Check the browser/account before trying again.");
-  }
+  await openAccountCheckout({
+    state: plugin.settings, appId: APP_ID, installationId: plugin.settings.constanceDeviceId,
+    persist: () => plugin.saveSettings(), syncBalance: () => syncBalance(plugin), refreshSession: () => refreshBillingSession(plugin.settings, () => plugin.saveSettings()),
+  }, GARDA_PLAN_CODES[pack]);
 }

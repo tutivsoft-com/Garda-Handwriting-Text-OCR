@@ -1,6 +1,7 @@
+import { configureGateway, gatewayFor } from "./preview-gateway";
 import { Editor, MarkdownView, Notice, Plugin, TFile, TFolder, type Menu } from "obsidian";
 import { openCheckout, retryPendingSpendEvents, spendPage, syncBalance } from "./billing";
-import { combinePages, poll, stableHash, submit, SUPPORTED_EXTENSIONS } from "./ocr";
+import { combinePages, transcribeDirect, stableHash, SUPPORTED_EXTENSIONS } from "./ocr";
 import { DEFAULT_SETTINGS } from "./settings";
 import { GardaSettingTab } from "./settings-tab";
 import type { GardaJobResult, GardaSettings } from "./types";
@@ -25,6 +26,7 @@ export default class GardaPlugin extends Plugin {
     this.support.start();
     const stored = await this.loadData();
     this.settings = Object.assign({}, DEFAULT_SETTINGS, stored, { cache: { ...DEFAULT_SETTINGS.cache, ...(stored?.cache ?? {}) } });
+    this.settings.settingsMode = this.settings.settingsMode === "advanced" ? "advanced" : "simple";
     if (!this.settings.constanceDeviceId) { const bytes = new Uint8Array(16); window.crypto.getRandomValues(bytes); this.settings.constanceDeviceId = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(""); await this.saveSettings(); }
     this.settings.billingAccessToken = typeof this.settings.billingAccessToken === "string" ? this.settings.billingAccessToken : "";
     this.settings.billingRefreshToken = typeof this.settings.billingRefreshToken === "string" ? this.settings.billingRefreshToken : "";
@@ -33,6 +35,7 @@ export default class GardaPlugin extends Plugin {
     await this.saveSettings();
     this.registerEvent(this.app.workspace.on("file-menu", (menu, file) => { if (file instanceof TFile && this.isSupported(file)) this.addFileActions(menu, file); if (file instanceof TFolder) this.addFolderAction(menu, file); }));
     this.registerEvent(this.app.workspace.on("editor-menu", (menu, editor) => { const target = this.embedAtCursor(editor); if (target) this.addEditorActions(menu, target); }));
+    configureGateway(this.settings,{app:this.app,appId:"garda-handwriting-text-ocr",installationId:this.settings.constanceDeviceId,state:this.settings,persist:()=>this.saveSettings()});
     this.addCommand({ id: "extract-to-clipboard", name: "Extract handwriting to clipboard", callback: () => this.runActive("clipboard") });
     this.addCommand({ id: "append-to-current-note", name: "Append handwriting to current note", callback: () => this.runActive("append") });
     this.addCommand({ id: "replace-embed-with-text", name: "Replace handwriting embed with text", callback: () => this.runActive("replace") });
@@ -102,8 +105,10 @@ export default class GardaPlugin extends Plugin {
     this.activeOperation = "single";
     try {
       if (action === "replace" && (!replacement || replacement.file.path !== file.path)) throw new Error("Place the cursor inside the embed you want to replace.");
+      const sourceHash=stableHash(await this.app.vault.readBinary(file));
       const result = await this.transcribe(file, (state) => this.updateProgress(`Garda: ${file.name} — ${state.currentPage ? `processing page ${state.currentPage}` : state.status}...`));
       const text = combinePages(result.pages);
+      if(stableHash(await this.app.vault.readBinary(file))!==sourceHash)throw new Error("Source attachment changed. The original transcript is preserved; no output was applied.");
       if (result.pages.some((page) => page.needsReview)) new Notice("Garda: low-confidence pages require manual review before destructive actions.");
       if (action === "replace" && result.pages.some((page) => page.needsReview)) return;
       if (action === "clipboard") await navigator.clipboard.writeText(text);
@@ -125,7 +130,7 @@ export default class GardaPlugin extends Plugin {
       this.clearProgress();
     }
   }
-  /** Submit a file, poll until completion, and surface progress to the notice UI. */
+  /** Transcribe directly with the provider and surface page progress. */
   private async transcribe(file: TFile, onProgress?: (state: GardaJobResult) => void): Promise<GardaJobResult> {
     const bytes = await this.app.vault.readBinary(file);
     if (bytes.byteLength > 20 * 1024 * 1024) throw new Error("This file exceeds the 20 MB OCR limit.");
@@ -133,21 +138,17 @@ export default class GardaPlugin extends Plugin {
     const key = `${file.path}:${hash}`;
     const cached = this.settings.cache[key];
     if (cached) return { jobId: "cache", status: "completed", pages: cached.map((page) => ({ ...page, totalPages: cached.length })) };
-    if (!this.settings.billingAccountLinked || !this.settings.billingAccessToken) {
-      throw new Error("Sign in to your billing account in Garda settings before starting OCR.");
-    }
     const controller = new AbortController();
     this.abortController = controller;
     try {
-      const job = await submit(this, file.path, hash, file.name, bytes);
-      const result = await poll(this, job.jobId, (state) => onProgress?.(state), controller.signal);
+      const result = await transcribeDirect(this, file.name, bytes, (state) => onProgress?.(state), controller.signal);
       if (result.status !== "completed") throw new Error(result.error || "OCR job failed.");
       const successfulPages = result.pages.filter((page) => !page.failed);
       if (successfulPages.length === 0) throw new Error("OCR returned no usable pages.");
       // Spend the complete successful-page count in one idempotent server
       // operation. Per-page calls could charge the first pages and then fail,
       // leaving the user with no transcript but a partially consumed pack.
-      if (!(await spendPage(this, successfulPages.length))) throw new Error("OCR credits are unavailable for this document.");
+      // Each page was committed exactly once before full reveal by the gateway.
       this.settings.cache[key] = result.pages;
       await this.saveSettings();
       return result;
