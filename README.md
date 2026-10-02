@@ -1,54 +1,24 @@
 # Garda Handwriting Text OCR
 
-Garda Handwriting Text OCR is an Obsidian plugin for turning handwritten notes into searchable text inside Obsidian. V1 uses a Garda SaaS OCR backend and the existing TutivSoft Constance credit system.
+Version: 5.7.35 — validated locally for publication; release pending.
 
-Public candidate manifest: `5.7.28` (latest completed Community release: `5.7.26`; private source: `5.7.30`) · [Complete user guide](./docs/USER_GUIDE.md)
+## Current purchase behavior
 
-Setup and troubleshooting: [Complete user guide](./docs/USER_GUIDE.md).
-
-## What Garda does
-
-Garda is an Obsidian plugin that turns a user-selected handwritten image or PDF into Markdown text. It sends the selected file to the configured Garda backend, which preprocesses pages and forwards them to the OCR model configured in the backend. The configured OCR service processes each selected file and returns searchable Markdown; the OCR provider is configured by the service.
-
-Each successfully processed page consumes one OCR credit. The plugin offers 20-, 160-, and 640-page packs through Constance; checkout shows the current price. Unchanged files can be served from the local cache without another OCR request or credit spend.
-
-## Status
-
-Garda is available from the Obsidian Community plugin browser. For setup and troubleshooting, see the [complete user guide](./docs/USER_GUIDE.md).
+Purchase settings load the app's current offer configuration and Paddle prices from Constance. Offer quantities use the app's native billing unit from that configuration; displayed amounts and descriptions come from the current provider price. The client matches offers by exact configured price ID and enables purchase only when Constance reports `checkout_available`. Checkout sends that exact price ID through the authenticated billing route. Prices and pack quantities are not fixed in the plugin. Existing account balances and granted credits remain associated with the account.
 
 
-## Installation
+Garda extracts text from image and PDF attachments in Obsidian. It sends selected images directly to OpenRouter using Garda's existing managed key manifest. Constance handles billing and account operations.
 
-Install Garda from the Obsidian Community plugin browser, or copy main.js, manifest.json, and styles.css into .obsidian/plugins/garda-handwriting-text-ocr/ and enable it under Community plugins. Configure the Garda backend URL and API key in plugin settings, then use Test connection before processing a document.
-## Usage
+## OCR processing
 
-Garda adds image and PDF actions to supported editor and file-explorer menus, plus command-palette entries for clipboard extraction, appending, embed replacement, new-note extraction, and folder batches. The original image or PDF remains in the vault. Generated Markdown is indexed by Obsidian search.
+Images are decoded and resized locally. Bundled PDF.js renders each PDF page locally. Garda decrypts its existing OpenRouter key manifest and sends each selected page image directly to the established image-capable model. Constance verifies the billing account and installation, serves current Paddle offers, and records credit spending. Successful results are cached locally for unchanged attachments.
 
-To append a transcription, keep a Markdown note open. Garda captures that note when the action starts, so switching notes while OCR runs does not send the result elsewhere. Creating a transcription note never overwrites an existing note; repeat runs receive a numbered filename.
+## Usage and privacy
+Connect your billing account in Garda settings, test the connection, select an attachment and choose an extraction command. Simple is the default; Advanced contains diagnostics and less frequent options. Clipboard and new-note commands preserve the original. Replace embed requires confirmation and is blocked when results need review. Folder batches show page progress and support cancellation. Inputs are limited to 20 MB. Browser-dependent HEIC/TIFF files may need conversion to PNG or JPEG.
 
-Supported inputs are JPG, PNG, GIF, BMP, TIFF, HEIC, WEBP, and PDF. Inputs are limited to 20 MB. PDFs are processed one page at a time. Unchanged files are served from a content-hash cache and do not consume another OCR credit.
-
-## Privacy
-
-OCR is explicit and user initiated. The selected vault file is sent over HTTPS to the configured Garda backend and then to its configured OCR provider. The Garda service does not train models; the provider has its own data handling terms, which users should review before processing sensitive content. Job data is held in backend memory and removed after the configured retention period, which defaults to 15 minutes. The plugin does not send separate usage analytics. The original vault file is preserved unless the user explicitly chooses **Replace embed**.
-
-Low-quality pages are marked for manual review and cannot be used for destructive embed replacement without review.
-
-## Billing
-
-Garda uses Constance account-linked credits. Sign in or create an account in plugin settings to view your balance and purchase credit packs. One credit is used for each successfully processed page; current prices are shown during checkout.
+Only selected page images are sent to OpenRouter; review its data handling terms before processing sensitive content. Constance receives account, checkout, and credit-spend requests. No separate usage analytics are sent. Cancellation stops further pages and discards the pending response; an already-sent provider request may finish. Originals remain intact unless Replace embed is explicitly selected.
 
 
-## Diagnostics
+## Manual installation
 
-Use Copy full log in Garda settings or Copy full debug log from the command palette when reporting a problem. Garda copies up to the latest 1,000 plugin events since load; it excludes note contents, file paths, credentials, and raw error messages. The log resets when the plugin reloads.
-## Limitations
-
-Remote OCR requires a configured Garda backend and API key. Recognition quality varies with handwriting, image quality, page layout, and legibility. Low-confidence output should be reviewed before it is treated as authoritative.
-
-## License
-
-Garda is distributed under the MIT license. The backend uses its runtime dependencies' respective licenses.
-
-
-Billing account recovery: use **Forgot password?** in settings to open the central reset page. Sign-out clears saved tokens and requests server session revocation. After registration, verify your email before signing in.
+Download `main.js`, `manifest.json`, and `styles.css` from the matching published release and place them in `.obsidian/plugins/garda-handwriting-text-ocr/`, then enable the plugin in Obsidian.
