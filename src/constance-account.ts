@@ -1,3 +1,4 @@
+import { resumeAccountCheckout } from "./billing-checkout";
 import { Notice, Setting, requestUrl } from "obsidian";
 
 export const CONSTANCE_ACCOUNT_BASE_URL = "https://app.tutivsoft.com";
@@ -33,7 +34,10 @@ export type AccountSpendResult =
   | { kind: "error" };
 
 function errorDetail(response: { json?: any; text?: string }, fallback: string): string {
-  return String(response.json?.detail || response.json?.message || response.text || fallback);
+  const detail = response.json?.detail;
+  if (detail?.code === "invalid_credentials") return "Incorrect password. Use Forgot password? to reset it.";
+  if (detail?.code === "email_verification_required") return "Email not verified. Click the link in your email, then Connect again.";
+  return String(detail?.message || (typeof detail === "string" ? detail : "") || response.json?.message || fallback);
 }
 
 interface AuthTokens {
@@ -42,12 +46,12 @@ interface AuthTokens {
 }
 
 async function authenticate(
-  mode: "login" | "register",
+  mode: "login" | "register" | "connect",
   email: string,
   password: string,
   installationId: string,
 ): Promise<AuthTokens> {
-  const body = mode === "register"
+  const body = mode !== "login"
     ? { email, password, external_customer_id: installationId }
     : { email, password };
   const response = await requestUrl({
@@ -68,22 +72,46 @@ async function authenticate(
   return { accessToken, refreshToken: String(response.json?.refresh_token || "") };
 }
 
+const refreshes = new WeakMap<ConstanceAccountState, Promise<boolean>>();
+
 export async function refreshBillingSession(state: ConstanceAccountState, persist?: () => Promise<void>): Promise<boolean> {
+  const pending = refreshes.get(state);
+  if (pending) {
+    const refreshed = await pending;
+    if (refreshed && persist) await persist();
+    return refreshed;
+  }
+  const operation = rotateBillingSession(state, persist);
+  refreshes.set(state, operation);
+  try { return await operation; } finally { refreshes.delete(state); }
+}
+
+async function rotateBillingSession(state: ConstanceAccountState, persist?: () => Promise<void>): Promise<boolean> {
   if (!state.billingRefreshToken) return false;
+  const originalToken = state.billingRefreshToken;
   try {
     const response = await requestUrl({
       url: `${CONSTANCE_ACCOUNT_BASE_URL}/api/v1/auth/refresh`,
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: state.billingRefreshToken }),
+      body: JSON.stringify({ refresh_token: originalToken }),
       throw: false,
     });
+    // A refresh started before sign-out must not restore the old account.
+    if (state.billingRefreshToken !== originalToken) return false;
+    if (response.status === 401 || response.status === 403) {
+      state.billingAccessToken = "";
+      state.billingRefreshToken = "";
+      state.billingAccountLinked = false;
+      if (persist) await persist();
+      return false;
+    }
     if (response.status < 200 || response.status >= 300) return false;
     const accessToken = String(response.json?.access_token || "");
     const refreshToken = String(response.json?.refresh_token || "");
-    if (!accessToken) return false;
+    if (!accessToken || !refreshToken) return false;
     state.billingAccessToken = accessToken;
-    if (refreshToken) state.billingRefreshToken = refreshToken;
+    state.billingRefreshToken = refreshToken;
     if (persist) await persist();
     return true;
   } catch (error) {
@@ -114,9 +142,13 @@ async function linkInstallation(adapter: ConstanceAccountAdapter, token: string)
 export async function signInBillingAccount(
   adapter: ConstanceAccountAdapter,
   password: string,
-  mode: "login" | "register",
+  mode: "login" | "register" | "connect",
 ): Promise<void> {
   const email = adapter.state.billingEmail.trim().toLowerCase();
+  const journalState = adapter.state as ConstanceAccountState & Record<string, any>;
+  const owner = String(journalState.pendingBillingOwnerEmail || "").toLowerCase();
+  if (owner && owner !== email) throw new Error(`An unfinished billing request belongs to ${owner}. Connect that account to recover it first.`);
+
   if (!email || !email.includes("@")) throw new Error("Enter a valid billing email.");
   if (Array.from(password).length < 8 || Array.from(password).length > 128) throw new Error("Password must be between 8 and 128 characters.");
   if (!adapter.installationId) throw new Error("The plugin installation ID is not ready.");
@@ -124,7 +156,7 @@ export async function signInBillingAccount(
   try {
     tokens = await authenticate(mode, email, password, adapter.installationId);
   } catch (error) {
-    if (mode === "register" && error instanceof Error && error.message.startsWith("Account created. Verify")) {
+    if (mode !== "login" && error instanceof Error && error.message.startsWith("Account created. Verify")) {
       adapter.state.billingEmail = email;
       adapter.state.billingAccessToken = "";
       adapter.state.billingRefreshToken = "";
@@ -172,13 +204,19 @@ export async function signOutBillingAccount(adapter: ConstanceAccountAdapter): P
 }
 
 export async function validateBillingSession(adapter: ConstanceAccountAdapter): Promise<boolean> {
+  resumeAccountCheckout({ ...adapter, refreshSession: () => refreshBillingSession(adapter.state, adapter.persist) });
+
   let token = adapter.state.billingAccessToken;
   if (!token || !adapter.state.billingAccountLinked || !adapter.installationId) return false;
   const query = new URLSearchParams({ app_id: adapter.appId, installation_id: adapter.installationId });
   let response = await requestUrl({ url: `${CONSTANCE_ACCOUNT_BASE_URL}/api/v1/billing/entitlements/me?${query.toString()}`, method: "GET", headers: { Authorization: `Bearer ${token}` }, throw: false });
-  if (response.status === 401 && await refreshBillingSession(adapter.state, adapter.persist)) {
-    token = adapter.state.billingAccessToken;
-    response = await requestUrl({ url: `${CONSTANCE_ACCOUNT_BASE_URL}/api/v1/billing/entitlements/me?${query.toString()}`, method: "GET", headers: { Authorization: `Bearer ${token}` }, throw: false });
+  if (response.status === 401 && adapter.state.billingRefreshToken) {
+    if (await refreshBillingSession(adapter.state, adapter.persist)) {
+      token = adapter.state.billingAccessToken;
+      response = await requestUrl({ url: `${CONSTANCE_ACCOUNT_BASE_URL}/api/v1/billing/entitlements/me?${query.toString()}`, method: "GET", headers: { Authorization: `Bearer ${token}` }, throw: false });
+    } else if (adapter.state.billingRefreshToken) {
+      return false;
+    }
   }
   if (response.status === 401 || response.status === 403 || response.status === 404) {
     adapter.state.billingAccountLinked = false;
@@ -196,6 +234,7 @@ export async function claimAccountFreeUsage(
   installationId: string,
   eventId: string,
   amount: number,
+  persist?: () => Promise<void>,
 ): Promise<FreeUsageResult> {
   if (!state.billingAccessToken || !state.billingAccountLinked) return { kind: "auth-required" };
   try {
@@ -206,7 +245,16 @@ export async function claimAccountFreeUsage(
       body: JSON.stringify({ app_id: appId, installation_id: installationId, event_id: eventId, amount }),
       throw: false,
     });
-    if (response.status === 401 && await refreshBillingSession(state)) return claimAccountFreeUsage(state, appId, installationId, eventId, amount);
+    if (response.status === 401 && state.billingRefreshToken) {
+      if (!await refreshBillingSession(state, persist)) return { kind: state.billingRefreshToken ? "error" : "auth-required" };
+      response = await requestUrl({
+        url: `${CONSTANCE_ACCOUNT_BASE_URL}/api/v1/billing/free-usage/claim`,
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${state.billingAccessToken}` },
+        body: JSON.stringify({ app_id: appId, installation_id: installationId, event_id: eventId, amount }),
+        throw: false,
+      });
+    }
     if (response.status === 402) return { kind: "insufficient" };
     if (response.status === 401 || response.status === 403 || response.status === 404) return { kind: "auth-required" };
     if (response.status < 200 || response.status >= 300) return { kind: "error" };
@@ -238,7 +286,10 @@ export async function spendAccountCredits(
       body: JSON.stringify({ app_id: appId, installation_id: installationId, event_id: eventId, amount }),
       throw: false,
     });
-    if (response.status === 401 && await refreshBillingSession(state, persist)) {
+    if (response.status === 401 && state.billingRefreshToken) {
+      if (!await refreshBillingSession(state, persist)) {
+        return { kind: state.billingRefreshToken ? "error" : "auth-required" };
+      }
       response = await requestUrl({
         url: `${CONSTANCE_ACCOUNT_BASE_URL}/api/v1/billing/credits/spend`,
         method: "POST",
@@ -263,6 +314,8 @@ export async function spendAccountCredits(
 }
 
 export function addBillingAccountSettings(containerEl: HTMLElement, adapter: ConstanceAccountAdapter): void {
+  resumeAccountCheckout({ ...adapter, refreshSession: () => refreshBillingSession(adapter.state, adapter.persist) });
+
   let password = "";
   const section = containerEl.createDiv({ cls: "constance-account-billing-section" });
   section.createEl("h3", { text: "Account and billing" });
@@ -280,11 +333,16 @@ export function addBillingAccountSettings(containerEl: HTMLElement, adapter: Con
     text: numericBalances.length ? `${accountStatus} Balance — ${numericBalances.join("; ")}` : accountStatus,
   });
 
+  if (!adapter.state.billingAccountLinked) {
   new Setting(section)
     .setName("Email")
     .setDesc(adapter.state.billingAccountLinked ? "Sign out before changing accounts." : "Used to register, sign in, restore purchases, and open checkout.")
     .addText((text) => text.setPlaceholder("you@example.com").setValue(adapter.state.billingEmail).setDisabled(adapter.state.billingAccountLinked).onChange(async (value) => {
       if (adapter.state.billingAccountLinked) return;
+      const journalState = adapter.state as ConstanceAccountState & Record<string, any>;
+      const hasPending = Object.entries(journalState).some(([key, value]) => /^pending/i.test(key) && key !== "pendingBillingOwnerEmail" && !!value && (Array.isArray(value) ? value.length > 0 : typeof value === "object" ? Object.keys(value).length > 0 : true));
+      if (hasPending && !journalState.pendingBillingOwnerEmail) journalState.pendingBillingOwnerEmail = adapter.state.billingEmail;
+      if (!hasPending) journalState.pendingBillingOwnerEmail = undefined;
       adapter.state.billingEmail = value.trim();
       await adapter.persist();
     }));
@@ -296,34 +354,22 @@ export function addBillingAccountSettings(containerEl: HTMLElement, adapter: Con
       text.inputEl.maxLength = 256;
       text.setPlaceholder("8 to 128 characters").onChange((value) => { password = value; });
     });
+  }
   new Setting(section)
     .setName("Account")
     .setDesc(accountStatus)
-    .addButton((button) => button.setButtonText("Register").setDisabled(adapter.state.billingAccountLinked).onClick(async () => {
+    .addButton((button) => { if (adapter.state.billingAccountLinked) { button.buttonEl.remove(); return; } button.setButtonText("Connect").setDisabled(adapter.state.billingAccountLinked).onClick(async () => {
       button.setDisabled(true);
       try {
-        await signInBillingAccount(adapter, password, "register");
-        new Notice("Registered and signed in.");
+        await signInBillingAccount(adapter, password, "connect");
+        password = "";
+        new Notice(adapter.state.billingRegistrationPending ? "Check your email and follow the verification link, then Connect again." : `Connected as ${adapter.state.billingEmail}.`);
         adapter.refresh?.();
       } catch (error) {
-        new Notice(error instanceof Error ? error.message : "Registration failed.");
+        new Notice(error instanceof Error ? error.message : "Connection failed. Please try again.");
         adapter.refresh?.();
-      } finally {
-        button.setDisabled(false);
-      }
-    }))
-    .addButton((button) => button.setButtonText("Sign in").setDisabled(adapter.state.billingAccountLinked).onClick(async () => {
-      button.setDisabled(true);
-      try {
-        await signInBillingAccount(adapter, password, "login");
-        new Notice(`Signed in as ${adapter.state.billingEmail}.`);
-        adapter.refresh?.();
-      } catch (error) {
-        new Notice(error instanceof Error ? error.message : "Sign-in failed.");
-      } finally {
-        button.setDisabled(false);
-      }
-    }))
+      } finally { button.setDisabled(adapter.state.billingAccountLinked); }
+    }); })
     .addButton((button) => button.setButtonText("Sign out").setDisabled(!adapter.state.billingAccessToken && !adapter.state.billingRefreshToken).onClick(async () => {
       await signOutBillingAccount(adapter);
       new Notice("Signed out.");

@@ -1,6 +1,5 @@
 export interface GardaSettings {
-  backendUrl: string;
-  apiKey: string;
+  settingsMode: "simple" | "advanced";
   constanceDeviceId: string;
   billingEmail: string;
   billingAccessToken: string;
