@@ -1,29 +1,8 @@
-<!-- SETTINGS-CURRENT-2026-09-30 -->
-## Current local settings implementation
-
-The local working tree uses persisted **Simple** and **Advanced** modes; new installs default to Simple. Simple shows everyday workflow and account/billing controls; Advanced adds customization and diagnostics. Review-before-apply remains off by default in current source; explicit saved preferences remain in effect.
-
-
-This guide describes the prepared plugin behavior; release availability is tracked separately.
-Simple: account, page balance, purchases and connection test. Advanced: service/privacy details and diagnostics. Model and retention are controlled by the service.
-
-<!-- SETTINGS-CURRENT-2026-09-30:END -->
-
-<!-- BILLING-CURRENT-2026-09-30 -->
-## Current local account and billing behavior
-
-Use **Connect** with your email and password. A new account is registered; an existing account is authenticated. New users must follow the emailed verification link and Connect again. Incorrect passwords offer password recovery; passwords are never saved. Paid purchases and free allowances belong to the authenticated account, not a locally entered email or an editable cached balance. Reinstalling does not replenish the same account's allowance.
-
-Constance is the billing authority. Credit units remain app-specific: characters, OCR pages, searches, conversions, repair/protection batches, or captures. Checkout return URLs and cached balances never grant credits. Payment fulfillment comes from the server’s verified Paddle webhook, and balances refresh from authenticated entitlements. Unknown usage or checkout results reuse the persisted operation ID; they must not create a new debit or alternative checkout.
-
-
-Current Paddle offers and page allowances load from the authenticated Constance catalog; the client does not keep a second price table.
-<!-- BILLING-CURRENT-2026-09-30:END -->
-
 # Garda Handwriting Text OCR — user guide
 
 ## What Garda does
 
+Garda extracts handwriting from a selected image or PDF attachment and lets you copy or place the transcription in your vault. OCR runs on pages prepared locally; the page images are sent directly to OpenRouter. Constance manages Garda accounts, current offers, checkout and OCR credits.
 
 ## First setup
 
@@ -85,10 +64,11 @@ handwriting unless you accept the provider's data handling terms.
 
 ## Troubleshooting
 
+- If a file is not accepted, check that it is a supported image or PDF and is no larger than 20 MB. Some HEIC/TIFF files depend on browser decoding; convert them to PNG or JPEG if needed.
+- If processing fails, check your connection, account status and available page credits, then retry the selected attachment.
+- If OCR completes with uncertain pages, review the transcription before using it. Garda prevents replacement when review is required.
+
 
 ## Diagnostics
 
 For troubleshooting, open Garda settings and choose Copy full log, or run Copy full debug log from the command palette. The copied log contains up to the latest 1,000 Garda events since the most recent plugin load. It excludes note contents, file paths, credentials, and raw error messages. Logs reset when Garda reloads.
-
-## OCR provider
-Garda prepares image and PDF pages locally, decrypts its existing managed OpenRouter key manifest (Pattern B), and sends each page directly to OpenRouter using the established image-capable model. No provider key field or custom endpoint is required. Constance handles billing account verification, current Paddle offers, and idempotent credit spending. OCR results are cached locally for unchanged attachments.

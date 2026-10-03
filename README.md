@@ -1,6 +1,6 @@
 # Garda Handwriting Text OCR
 
-Version: 5.7.35 — validated locally for publication; release pending.
+Version: 5.7.36.
 
 ## Current purchase behavior
 
