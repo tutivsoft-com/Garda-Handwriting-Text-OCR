@@ -1,3 +1,4 @@
+import { showAccountWelcome } from "./constance-account";
 import { Editor, MarkdownView, Notice, Plugin, TFile, TFolder, type Menu } from "obsidian";
 import { retryPendingSpendEvents, spendPage, syncBalance } from "./billing";
 import { combinePages, transcribeDirect, stableHash, SUPPORTED_EXTENSIONS } from "./ocr";
@@ -42,6 +43,7 @@ export default class GardaPlugin extends Plugin {
     this.addCommand({ id: "batch-extract-folder", name: "Batch extract folder", callback: () => { const folder = this.app.workspace.getActiveFile()?.parent; if (folder) return this.runFolder(folder); } });
     this.addCommand({ id: "cancel-active-operation", name: "Cancel active OCR or batch", callback: () => this.cancelActiveOperation() });
     this.addSettingTab(new GardaSettingTab(this.app, this));
+    await showAccountWelcome(this, this.settings, () => this.saveSettings());
     void syncBalance(this).then(() => retryPendingSpendEvents(this));
   }
 

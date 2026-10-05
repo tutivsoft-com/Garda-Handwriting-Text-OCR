@@ -1,6 +1,6 @@
 # Garda Handwriting Text OCR
 
-Version: 5.7.36.
+Version: 5.7.41. Validated for publication; release pending.
 
 ## Current purchase behavior
 
@@ -22,3 +22,16 @@ Only selected page images are sent to OpenRouter; review its data handling terms
 ## Manual installation
 
 Download `main.js`, `manifest.json`, and `styles.css` from the matching published release and place them in `.obsidian/plugins/garda-handwriting-text-ocr/`, then enable the plugin in Obsidian.
+
+
+### Getting started with your account
+
+Select an image or PDF, then choose a Garda extraction command. Each successfully processed page uses one credit. Create an account or sign in in the plugin settings, verify your email if requested, then connect. Free AI usage requires a registered, connected account to help prevent abuse. The default lifetime allowance is 5 OCR pages per account as our thank-you for trying the app; settings check the current policy and account balance. You can add credits at affordable prices once you are ready; the current offers and prices load in settings. Setup guidance stays visible until connected, and the welcome appears only once.
+
+## Account lifetime allowance
+
+5 pages lifetime per account. Pages successfully processed. Existing allowance consumption survives upgrades and reinstalls; lifetime allowances do not refill daily. Free units are used first and purchased units cover the remainder of the same operation. Native writes retain reserve, write, verify and finalize safeguards. Uncertain results retain the original event for recovery. The app retains its existing review and result-authorization workflow.
+
+The allowance belongs to the account and does not reset daily or after reinstalling. Free units are consumed first; purchased units cover the remainder. Current prices and available offers load from Constance in settings.
+
+AI requests use the fixed OpenRouter model `~openai/gpt-luna-latest`. Legacy saved model preferences do not change the request model.

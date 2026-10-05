@@ -6,7 +6,7 @@ import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 // @ts-ignore PDF.js worker has no published declaration; bundle it for local rendering.
 import * as pdfWorker from "pdfjs-dist/legacy/build/pdf.worker.mjs";
 (globalThis as any).pdfjsWorker = pdfWorker;
-export const MODEL = "deepseek/deepseek-v4-flash-vision-exp";
+export const MODEL = "~openai/gpt-luna-latest";
 const PROMPT = "Transcribe exactly as visible. Preserve line breaks, headings, lists, dates and punctuation. Do not summarize, correct or invent text. Use [illegible] for unreadable text. Return plain text only.";
 export const SUPPORTED_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "bmp", "tiff", "tif", "heic", "webp", "pdf"]);
 export function getConfigurationError(plugin: GardaPlugin): string | null {

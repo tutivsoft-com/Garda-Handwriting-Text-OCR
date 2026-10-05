@@ -1,8 +1,9 @@
+import { consumeAccountUnits } from "./account-credit-client";
 import { resumeAccountCheckout } from "./billing-checkout";
 import { openAccountCheckout } from "./billing-checkout";
 import { Notice, requestUrl } from "obsidian";
 import type GardaPlugin from "./main";
-import { refreshBillingSession, spendAccountCredits } from "./constance-account";
+import { refreshBillingSession, spendAccountCredits, claimAccountFreeUsage } from "./constance-account";
 
 const BASE_URL = "https://app.tutivsoft.com";
 const APP_ID = "garda-handwriting-text-ocr";
@@ -51,7 +52,8 @@ export async function syncBalance(plugin: GardaPlugin, manual = false): Promise<
       });
     }
     if (response.status >= 200 && response.status < 300) {
-      plugin.settings.cachedBalance = Math.max(0, Number(response.json?.data?.credits?.balance) || 0);
+      plugin.settings.cachedBalance = Math.max(0, Number((response.json?.data?.credits?.total_available ?? response.json?.data?.credits?.balance)) || 0);
+      (plugin.settings as typeof plugin.settings & { cachedFreePages?: number }).cachedFreePages = Math.max(0, Number(response.json?.data?.free_usage?.remaining) || 0);
       await plugin.saveSettings();
       plugin.refreshBillingCredits?.();
     } else if (manual) throw new Error("Could not refresh OCR credits. Check your connection and account, then try again.");
@@ -61,13 +63,38 @@ export async function syncBalance(plugin: GardaPlugin, manual = false): Promise<
   }
 }
 
-export async function spendPage(plugin: GardaPlugin, amount = 1, stableEventId = eventId()): Promise<boolean> {
+export async function spendPage(plugin: GardaPlugin, amount = 1, stableEventId = `consume_${eventId()}`): Promise<boolean> {
   if (!plugin.settings.billingAccessToken || !plugin.settings.billingAccountLinked) { new Notice("Garda: sign in or create a billing account in plugin settings before starting OCR."); return false; }
   if (!Number.isInteger(amount) || amount <= 0) return false;
   plugin.settings.pendingSpendEvents = [...(plugin.settings.pendingSpendEvents ?? []), { eventId: stableEventId, amount }]
     .filter((item, index, items) => items.findIndex((candidate) => candidate.eventId === item.eventId) === index);
   await plugin.saveSettings();
+  if (stableEventId.startsWith("consume_")) {
+    const result = await consumeAccountUnits({state: plugin.settings, appId: APP_ID, installationId: plugin.settings.constanceDeviceId, refreshSession: () => refreshBillingSession(plugin.settings, () => plugin.saveSettings())}, stableEventId, amount);
+    if (result.kind === "ok" || result.kind === "insufficient") {
+      plugin.settings.pendingSpendEvents = plugin.settings.pendingSpendEvents.filter(item => item.eventId !== stableEventId);
+      if (result.kind === "ok") {
+        plugin.settings.cachedBalance = result.balance ?? plugin.settings.cachedBalance;
+        (plugin.settings as typeof plugin.settings & {cachedFreePages?: number}).cachedFreePages = result.freeRemaining;
+      }
+      await plugin.saveSettings();
+      return result.kind === "ok";
+    }
+    new Notice("Garda: account credits could not be verified. Reconnect or retry when the connection is restored.");
+    return false;
+  }
   try {
+    const free = await claimAccountFreeUsage(plugin.settings, APP_ID, plugin.settings.constanceDeviceId, stableEventId, amount, () => plugin.saveSettings());
+    if (free.kind === "ok") {
+      (plugin.settings as typeof plugin.settings & { cachedFreePages?: number }).cachedFreePages = free.remaining;
+      plugin.settings.pendingSpendEvents = plugin.settings.pendingSpendEvents.filter((item) => item.eventId !== stableEventId);
+      await plugin.saveSettings();
+      return true;
+    }
+    if (free.kind !== "insufficient") {
+      new Notice(free.kind === "auth-required" ? "Garda: connect your account in settings to use your free pages." : "Garda: the free allowance could not be verified. Please try again.");
+      return false;
+    }
     const result = await spendAccountCredits(plugin.settings, APP_ID, plugin.settings.constanceDeviceId, stableEventId, amount, () => plugin.saveSettings());
     if (result.kind === "insufficient") {
       new Notice("Garda: no OCR credits remain. Buy credits in plugin settings.");

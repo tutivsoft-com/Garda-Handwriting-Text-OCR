@@ -23,7 +23,10 @@ export class GardaSettingTab extends PluginSettingTab {
     updateStatus();
     addBillingAccountSettings(containerEl, { state: this.plugin.settings, appId: "garda-handwriting-text-ocr", installationId: this.plugin.settings.constanceDeviceId, appVersion: this.plugin.manifest.version, persist: () => this.plugin.saveSettings(), syncBalance: () => syncBalance(this.plugin), refresh: () => this.display() });
     const balance = new Setting(containerEl).setName("OCR credits");
-    const updateBalance = () => balance.setDesc(`${this.plugin.settings.cachedBalance.toLocaleString()} pages available for your account.`);
+    const updateBalance = () => {
+      const free = (this.plugin.settings as typeof this.plugin.settings & { cachedFreePages?: number }).cachedFreePages ?? 0;
+      balance.setDesc(this.plugin.settings.billingAccountLinked ? `${free.toLocaleString()} free pages + ${this.plugin.settings.cachedBalance.toLocaleString()} purchased pages available for your account.` : "Connect your account to check your free and purchased pages.");
+    };
     this.plugin.refreshBillingCredits = updateBalance;
     updateBalance();
     balance.addButton(button => button.setButtonText("Refresh balance").onClick(async () => {
