@@ -1,5 +1,6 @@
 export interface GardaSettings {
   settingsMode: "simple" | "advanced";
+  debugLogging?: boolean;
   constanceDeviceId: string;
   billingEmail: string;
   billingAccessToken: string;

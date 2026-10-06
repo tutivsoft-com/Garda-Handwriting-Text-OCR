@@ -1,3 +1,4 @@
+import { diagnostics } from "./diagnostics";
 import { consumeAccountUnits } from "./account-credit-client";
 import { resumeAccountCheckout } from "./billing-checkout";
 import { openAccountCheckout } from "./billing-checkout";
@@ -28,43 +29,66 @@ function eventId(): string {
 }
 
 export async function retryPendingSpendEvents(plugin: GardaPlugin): Promise<void> {
+const diagnosticEnd1 = diagnostics?.start?.("billing.retryPendingSpendEvents") ?? (() => {});
+try {
+
   for (const pending of [...(plugin.settings.pendingSpendEvents ?? [])]) {
     const result = await spendPage(plugin, pending.amount, pending.eventId);
     if (!result) break;
   }
+
+} catch (diagnosticError1) { diagnostics?.failure?.("billing.retryPendingSpendEvents", diagnosticError1); throw diagnosticError1; } finally { diagnosticEnd1(); }
 }
 
 export async function syncBalance(plugin: GardaPlugin, manual = false): Promise<void> {
+const diagnosticEnd2 = diagnostics?.start?.("billing.syncBalance") ?? (() => {});
+try {
+
   resumeAccountCheckout({ state: plugin.settings, appId: APP_ID, installationId: plugin.settings.constanceDeviceId,
     persist: () => plugin.saveSettings(), syncBalance: () => syncBalance(plugin), refreshSession: () => refreshBillingSession(plugin.settings, () => plugin.saveSettings()) });
 
   if (!plugin.settings.constanceDeviceId) return;
-  if (!plugin.settings.billingAccountLinked) { if (manual) throw new Error("Connect your billing account before refreshing credits."); return; }
+  if (!plugin.settings.billingAccountLinked) { if (manual) throw new Error("Connect your account before refreshing credits."); return; }
   try {
-    let response = await requestUrl({
+    let response = await (diagnostics?.request?.("network.billing.syncBalance", requestUrl, {
       url: `${BASE_URL}/api/v1/billing/entitlements/me?${new URLSearchParams({ app_id: APP_ID, installation_id: plugin.settings.constanceDeviceId }).toString()}`, method: "GET", throw: false,
       headers: { Authorization: `Bearer ${plugin.settings.billingAccessToken}` },
-    });
+    }) ?? requestUrl({
+      url: `${BASE_URL}/api/v1/billing/entitlements/me?${new URLSearchParams({ app_id: APP_ID, installation_id: plugin.settings.constanceDeviceId }).toString()}`, method: "GET", throw: false,
+      headers: { Authorization: `Bearer ${plugin.settings.billingAccessToken}` },
+    }));
     if (response.status === 401 && await refreshBillingSession(plugin.settings, () => plugin.saveSettings())) {
-      response = await requestUrl({
+      response = await (diagnostics?.request?.("network.billing.syncBalance", requestUrl, {
         url: `${BASE_URL}/api/v1/billing/entitlements/me?${new URLSearchParams({ app_id: APP_ID, installation_id: plugin.settings.constanceDeviceId }).toString()}`, method: "GET", throw: false,
         headers: { Authorization: `Bearer ${plugin.settings.billingAccessToken}` },
-      });
+      }) ?? requestUrl({
+        url: `${BASE_URL}/api/v1/billing/entitlements/me?${new URLSearchParams({ app_id: APP_ID, installation_id: plugin.settings.constanceDeviceId }).toString()}`, method: "GET", throw: false,
+        headers: { Authorization: `Bearer ${plugin.settings.billingAccessToken}` },
+      }));
     }
     if (response.status >= 200 && response.status < 300) {
-      plugin.settings.cachedBalance = Math.max(0, Number((response.json?.data?.credits?.total_available ?? response.json?.data?.credits?.balance)) || 0);
-      (plugin.settings as typeof plugin.settings & { cachedFreePages?: number }).cachedFreePages = Math.max(0, Number(response.json?.data?.free_usage?.remaining) || 0);
+      const balance = response.json?.data?.credits?.total_available ?? response.json?.data?.credits?.balance;
+      const free = response.json?.data?.free_usage?.remaining;
+      if (!Number.isFinite(balance) || balance < 0 || !Number.isFinite(free) || free < 0) throw new Error("Your balance could not be updated. Refresh it and try again.");
+      plugin.settings.cachedBalance = balance;
+      (plugin.settings as typeof plugin.settings & { cachedFreePages?: number }).cachedFreePages = free;
       await plugin.saveSettings();
       plugin.refreshBillingCredits?.();
     } else if (manual) throw new Error("Could not refresh OCR credits. Check your connection and account, then try again.");
   } catch (error) {
+diagnostics.failure("billing.caught_1", error);
     if (manual) throw error;
-    console.warn("Garda: Constance balance sync failed", error);
+    diagnostics?.legacy?.("warn", "billing.garda_constance_balance_sync_failed");
   }
+
+} catch (diagnosticError2) { diagnostics?.failure?.("billing.syncBalance", diagnosticError2); throw diagnosticError2; } finally { diagnosticEnd2(); }
 }
 
 export async function spendPage(plugin: GardaPlugin, amount = 1, stableEventId = `consume_${eventId()}`): Promise<boolean> {
-  if (!plugin.settings.billingAccessToken || !plugin.settings.billingAccountLinked) { new Notice("Garda: sign in or create a billing account in plugin settings before starting OCR."); return false; }
+const diagnosticEnd3 = diagnostics?.start?.("billing.spendPage") ?? (() => {});
+try {
+
+  if (!plugin.settings.billingAccessToken || !plugin.settings.billingAccountLinked) { new Notice("Garda: sign in or create an account in plugin settings before starting OCR."); return false; }
   if (!Number.isInteger(amount) || amount <= 0) return false;
   plugin.settings.pendingSpendEvents = [...(plugin.settings.pendingSpendEvents ?? []), { eventId: stableEventId, amount }]
     .filter((item, index, items) => items.findIndex((candidate) => candidate.eventId === item.eventId) === index);
@@ -78,7 +102,7 @@ export async function spendPage(plugin: GardaPlugin, amount = 1, stableEventId =
         (plugin.settings as typeof plugin.settings & {cachedFreePages?: number}).cachedFreePages = result.freeRemaining;
       }
       await plugin.saveSettings();
-      return result.kind === "ok";
+      return await (result.kind === "ok");
     }
     new Notice("Garda: account credits could not be verified. Reconnect or retry when the connection is restored.");
     return false;
@@ -103,22 +127,30 @@ export async function spendPage(plugin: GardaPlugin, amount = 1, stableEventId =
       await plugin.saveSettings();
       return false;
     }
-    if (result.kind === "auth-required") { plugin.settings.billingAccessToken = ""; plugin.settings.billingRefreshToken = ""; plugin.settings.billingAccountLinked = false; await plugin.saveSettings(); new Notice("Garda: your billing session expired. Sign in again."); return false; }
+    if (result.kind === "auth-required") { plugin.settings.billingAccessToken = ""; plugin.settings.billingRefreshToken = ""; plugin.settings.billingAccountLinked = false; await plugin.saveSettings(); new Notice("Garda: your session expired. Sign in again."); return false; }
     if (result.kind !== "ok") throw new Error("Authenticated credit spend could not be verified");
     plugin.settings.cachedBalance = result.balance;
     plugin.settings.pendingSpendEvents = plugin.settings.pendingSpendEvents.filter((item) => item.eventId !== stableEventId);
     await plugin.saveSettings();
     return true;
   } catch (error) {
-    console.error("Garda: credit spend failed", error);
+diagnostics.failure("billing.caught_extra_1", error);
+    diagnostics?.legacy?.("error", "billing.garda_credit_spend_failed");
     new Notice("Garda could not verify credits. No OCR was started.");
     return false;
   }
+
+} catch (diagnosticError3) { diagnostics?.failure?.("billing.spendPage", diagnosticError3); throw diagnosticError3; } finally { diagnosticEnd3(); }
 }
 
 export async function openCheckout(plugin: GardaPlugin, pack: keyof typeof GARDA_PLAN_CODES): Promise<void> {
+const diagnosticEnd4 = diagnostics?.start?.("billing.openCheckout") ?? (() => {});
+try {
+
   await openAccountCheckout({
     state: plugin.settings, appId: APP_ID, installationId: plugin.settings.constanceDeviceId,
     persist: () => plugin.saveSettings(), syncBalance: () => syncBalance(plugin), refreshSession: () => refreshBillingSession(plugin.settings, () => plugin.saveSettings()),
   }, GARDA_PLAN_CODES[pack]);
+
+} catch (diagnosticError4) { diagnostics?.failure?.("billing.openCheckout", diagnosticError4); throw diagnosticError4; } finally { diagnosticEnd4(); }
 }

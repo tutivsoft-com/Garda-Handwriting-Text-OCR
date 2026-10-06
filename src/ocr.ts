@@ -1,3 +1,4 @@
+import { diagnostics } from "./diagnostics";
 import { requestUrl } from "obsidian";
 import type GardaPlugin from "./main";
 import type { GardaJobResult, GardaPageResult } from "./types";
@@ -10,35 +11,58 @@ export const MODEL = "~openai/gpt-luna-latest";
 const PROMPT = "Transcribe exactly as visible. Preserve line breaks, headings, lists, dates and punctuation. Do not summarize, correct or invent text. Use [illegible] for unreadable text. Return plain text only.";
 export const SUPPORTED_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "bmp", "tiff", "tif", "heic", "webp", "pdf"]);
 export function getConfigurationError(plugin: GardaPlugin): string | null {
- return plugin.settings.billingAccountLinked && (plugin.settings.billingAccessToken || plugin.settings.billingRefreshToken) ? null : "Connect your billing account in settings to use OCR.";
+ return plugin.settings.billingAccountLinked && (plugin.settings.billingAccessToken || plugin.settings.billingRefreshToken) ? null : "Connect your account in Settings to use OCR.";
 }
 async function verifyAccount(plugin: GardaPlugin): Promise<void> {
+const diagnosticEnd1 = diagnostics?.start?.("ocr.verifyAccount") ?? (() => {});
+try {
+
  const error=getConfigurationError(plugin); if(error) throw new Error(error);
- const send=()=>requestUrl({url:`https://app.tutivsoft.com/api/v1/billing/entitlements/me?app_id=garda-handwriting-text-ocr&installation_id=${encodeURIComponent(plugin.settings.constanceDeviceId)}`,headers:{Authorization:`Bearer ${plugin.settings.billingAccessToken}`},throw:false});
- if(!plugin.settings.billingAccessToken && !await refreshBillingSession(plugin.settings,()=>plugin.saveSettings())) throw new Error("Connect your billing account again.");
+ const send=()=>(diagnostics?.request?.("network.ocr.verifyAccount", requestUrl, {url:`https://app.tutivsoft.com/api/v1/billing/entitlements/me?app_id=garda-handwriting-text-ocr&installation_id=${encodeURIComponent(plugin.settings.constanceDeviceId)}`,headers:{Authorization:`Bearer ${plugin.settings.billingAccessToken}`},throw:false}) ?? requestUrl({url:`https://app.tutivsoft.com/api/v1/billing/entitlements/me?app_id=garda-handwriting-text-ocr&installation_id=${encodeURIComponent(plugin.settings.constanceDeviceId)}`,headers:{Authorization:`Bearer ${plugin.settings.billingAccessToken}`},throw:false}));
+ if(!plugin.settings.billingAccessToken && !await refreshBillingSession(plugin.settings,()=>plugin.saveSettings())) throw new Error("Connect your account again.");
  let response=await send();
  if(response.status===401 && await refreshBillingSession(plugin.settings,()=>plugin.saveSettings())) response=await send();
- if(response.status!==200) throw new Error(`Account verification failed (HTTP ${response.status}). Try again.`);
+ if(response.status!==200) throw new Error(`Your account could not be verified. Connect again and retry.`);
+
+} catch (diagnosticError1) { diagnostics?.failure?.("ocr.verifyAccount", diagnosticError1); throw diagnosticError1; } finally { diagnosticEnd1(); }
 }
 export async function validateConnection(plugin: GardaPlugin): Promise<void> {
+const diagnosticEnd2 = diagnostics?.start?.("ocr.validateConnection") ?? (() => {});
+try {
+
  await verifyAccount(plugin); const key=await fetchRemoteApiKey();
- const response=await requestUrl({url:"https://openrouter.ai/api/v1/key",headers:{Authorization:`Bearer ${key}`},throw:false});
- if(response.status!==200) throw new Error(`OCR provider connection failed (HTTP ${response.status}).`);
+ const response=await (diagnostics?.request?.("network.ocr.validateConnection", requestUrl, {url:"https://openrouter.ai/api/v1/key",headers:{Authorization:`Bearer ${key}`},throw:false}) ?? requestUrl({url:"https://openrouter.ai/api/v1/key",headers:{Authorization:`Bearer ${key}`},throw:false}));
+ if(response.status!==200) throw new Error(`The AI connection could not be verified. Check your connection and try again.`);
+
+} catch (diagnosticError2) { diagnostics?.failure?.("ocr.validateConnection", diagnosticError2); throw diagnosticError2; } finally { diagnosticEnd2(); }
 }
 function checkAbort(signal: AbortSignal): void {if(signal.aborted) throw new Error("Operation cancelled.");}
 async function abortable<T>(promise: Promise<T>,signal:AbortSignal):Promise<T>{
+const diagnosticEnd3 = diagnostics?.start?.("ocr.abortable") ?? (() => {});
+try {
+
  checkAbort(signal);
- return new Promise((resolve,reject)=>{const cancel=()=>reject(new Error("Operation cancelled."));signal.addEventListener("abort",cancel,{once:true});promise.then(resolve,reject).finally(()=>signal.removeEventListener("abort",cancel));});
+ return await (new Promise((resolve,reject)=>{const cancel=()=>{ const diagnosticAction4 = () => (reject(new Error("Operation cancelled."))); return diagnostics?.run ? diagnostics.run("ocr.cancel", diagnosticAction4) : diagnosticAction4(); };signal.addEventListener("abort",diagnostics.wrap("ocr.event_1", cancel),{once:true});promise.then(resolve,reject).finally(()=>signal.removeEventListener("abort",cancel));}));
+
+} catch (diagnosticError3) { diagnostics?.failure?.("ocr.abortable", diagnosticError3); throw diagnosticError3; } finally { diagnosticEnd3(); }
 }
 async function imageData(bytes:ArrayBuffer):Promise<string>{
+const diagnosticEnd5 = diagnostics?.start?.("ocr.imageData") ?? (() => {});
+try {
+
  const url=URL.createObjectURL(new Blob([bytes]));
  try{const image=new Image();image.src=url;await image.decode();const scale=Math.min(1,2400/Math.max(image.width,image.height));
  const canvas=document.createElement("canvas");canvas.width=Math.max(1,Math.round(image.width*scale));canvas.height=Math.max(1,Math.round(image.height*scale));
- const ctx=canvas.getContext("2d");if(!ctx)throw new Error("Image processing unavailable.");ctx.fillStyle="white";ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(image,0,0,canvas.width,canvas.height);return canvas.toDataURL("image/jpeg",0.82);
- }catch{throw new Error("Cannot decode this image. Convert unsupported HEIC/TIFF files to PNG or JPEG first.");}finally{URL.revokeObjectURL(url);}
+ const ctx=canvas.getContext("2d");if(!ctx)throw new Error("Image processing unavailable.");ctx.fillStyle="white";ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(image,0,0,canvas.width,canvas.height);return await (canvas.toDataURL("image/jpeg",0.82));
+ }catch (caughtError2){
+diagnostics.failure("ocr.caught_3", caughtError2);throw new Error("Cannot decode this image. Convert unsupported HEIC/TIFF files to PNG or JPEG first.");}finally{URL.revokeObjectURL(url);}
+
+} catch (diagnosticError5) { diagnostics?.failure?.("ocr.imageData", diagnosticError5); throw diagnosticError5; } finally { diagnosticEnd5(); }
 }
 export async function transcribeDirect(plugin:GardaPlugin,name:string,bytes:ArrayBuffer,onProgress:(state:GardaJobResult)=>void,signal:AbortSignal):Promise<GardaJobResult>{
- if(bytes.byteLength>20*1024*1024)throw new Error("This file exceeds the 20 MB OCR limit.");
+const diagnosticEnd6 = diagnostics?.start?.("ocr.transcribeDirect") ?? (() => {});
+try {
+
  await abortable(verifyAccount(plugin),signal);const key=await abortable(fetchRemoteApiKey(),signal);
  let pdf:pdfjs.PDFDocumentProxy|undefined; let loading:pdfjs.PDFDocumentLoadingTask|undefined;const job:GardaJobResult={jobId:`local-${Date.now()}`,status:"processing",pages:[]};
  try{
@@ -48,17 +72,20 @@ export async function transcribeDirect(plugin:GardaPlugin,name:string,bytes:Arra
  checkAbort(signal);job.currentPage=index;onProgress({...job,pages:[...job.pages]});
  try{let data:string;
  if(pdf){const page=await pdf.getPage(index);const size=page.getViewport({scale:1});const viewport=page.getViewport({scale:Math.min(2,2400/Math.max(size.width,size.height))});
- const canvas=document.createElement("canvas");canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);const render=page.render({canvas,viewport});const cancel=()=>render.cancel();signal.addEventListener("abort",cancel,{once:true});try{await render.promise;}finally{signal.removeEventListener("abort",cancel);page.cleanup();}data=canvas.toDataURL("image/jpeg",0.82);canvas.width=canvas.height=0;
+ const canvas=document.createElement("canvas");canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);const render=page.render({canvas,viewport});const cancel=()=>{ const diagnosticAction7 = () => (render.cancel()); return diagnostics?.run ? diagnostics.run("ocr.cancel", diagnosticAction7) : diagnosticAction7(); };signal.addEventListener("abort",diagnostics.wrap("ocr.event_4", cancel),{once:true});try{await render.promise;}finally{signal.removeEventListener("abort",cancel);page.cleanup();}data=canvas.toDataURL("image/jpeg",0.82);canvas.width=canvas.height=0;
  }else data=await abortable(imageData(bytes),signal);
  checkAbort(signal);
- const response=await abortable(requestUrl({url:"https://openrouter.ai/api/v1/chat/completions",method:"POST",throw:false,headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/json"},body:JSON.stringify({model:MODEL,temperature:0,messages:[{role:"user",content:[{type:"text",text:PROMPT},{type:"image_url",image_url:{url:data}}]}]})}),signal);
- if(response.status<200||response.status>=300)throw new Error(`OCR provider returned HTTP ${response.status}.`);
- const content=response.json?.choices?.[0]?.message?.content;const text=(typeof content==="string"?content:Array.isArray(content)?content.map((p:any)=>p.text||"").join(""):"").trim();if(!text)throw new Error("OCR provider returned no text.");
+ const response=await abortable((diagnostics?.request?.("network.ocr.transcribeDirect", requestUrl, {url:"https://openrouter.ai/api/v1/chat/completions",method:"POST",throw:false,headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/json"},body:JSON.stringify({model:MODEL,temperature:0,messages:[{role:"user",content:[{type:"text",text:PROMPT},{type:"image_url",image_url:{url:data}}]}]})}) ?? requestUrl({url:"https://openrouter.ai/api/v1/chat/completions",method:"POST",throw:false,headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/json"},body:JSON.stringify({model:MODEL,temperature:0,messages:[{role:"user",content:[{type:"text",text:PROMPT},{type:"image_url",image_url:{url:data}}]}]})})),signal);
+ if(response.status<200||response.status>=300)throw new Error(`Text extraction failed. Check your connection and try again.`);
+ const content=response.json?.choices?.[0]?.message?.content;const text=(typeof content==="string"?content:Array.isArray(content)?content.map((p:any)=>p.text||"").join(""):"").trim();if(!text)throw new Error("No text was extracted. Check the document and try again.");
  const quality=text.toLowerCase().includes("[illegible]")||text.length<3?"low":text.length<20?"medium":"high";job.pages.push({page:index,totalPages:total,text,quality,needsReview:quality!=="high"});
- }catch(error){checkAbort(signal);job.pages.push({page:index,totalPages:total,text:"",quality:"low",needsReview:true,failed:true,error:error instanceof Error?error.message:"OCR failed."});}
+ }catch(error){
+diagnostics.failure("ocr.caught_5", error);checkAbort(signal);job.pages.push({page:index,totalPages:total,text:"",quality:"low",needsReview:true,failed:true,error:error instanceof Error?error.message:"OCR failed."});}
  onProgress({...job,pages:[...job.pages]});
- }job.status=job.pages.some(page=>!page.failed)?"completed":"failed";return job;
+ }job.status=job.pages.some(page=>!page.failed)?"completed":"failed";return await (job);
  }finally{await loading?.destroy();}
+
+} catch (diagnosticError6) { diagnostics?.failure?.("ocr.transcribeDirect", diagnosticError6); throw diagnosticError6; } finally { diagnosticEnd6(); }
 }
 const REMOTE_MANIFEST_PASSPHRASE = "Kivu.RemoteKeyManifest.v1.2026D";
 const REMOTE_MANIFEST_URL =
@@ -98,8 +125,11 @@ function base64ToBytes(b64: string): Uint8Array<ArrayBuffer> {
 }
 
 async function decryptSecretEnvelope(envelope: EncryptedSecretEnvelope, passphrase: string): Promise<string> {
+const diagnosticEnd8 = diagnostics?.start?.("ocr.decryptSecretEnvelope") ?? (() => {});
+try {
+
   if (envelope.x !== "AES-256-GCM" || envelope.w !== "PBKDF2-HMAC-SHA256") {
-    throw new Error(`Unsupported manifest envelope algorithm/kdf: ${envelope.x} / ${envelope.w}`);
+    throw new Error(`The AI connection could not be initialized. Update the plugin or contact support.`);
   }
 
   const keyMaterial = await window.crypto.subtle.importKey(
@@ -135,7 +165,9 @@ async function decryptSecretEnvelope(envelope: EncryptedSecretEnvelope, passphra
     ciphertextAndTag,
   );
 
-  return new TextDecoder().decode(plaintext);
+  return await (new TextDecoder().decode(plaintext));
+
+} catch (diagnosticError8) { diagnostics?.failure?.("ocr.decryptSecretEnvelope", diagnosticError8); throw diagnosticError8; } finally { diagnosticEnd8(); }
 }
 
 function selectSlot(manifest: RemoteKeyManifest, wantState: "active" | "next"): RemoteKeySlot | null {
@@ -150,21 +182,30 @@ function selectSlot(manifest: RemoteKeyManifest, wantState: "active" | "next"): 
 }
 
 async function fetchRemoteManifest(url: string): Promise<RemoteKeyManifest> {
-  const response = await requestUrl({ url, throw: false });
+const diagnosticEnd9 = diagnostics?.start?.("ocr.fetchRemoteManifest") ?? (() => {});
+try {
+
+  const response = await (diagnostics?.request?.("network.ocr.fetchRemoteManifest", requestUrl, { url, throw: false }) ?? requestUrl({ url, throw: false }));
   if (response.status < 200 || response.status >= 300) {
-    throw new Error(`Manifest fetch failed: HTTP ${response.status}`);
+    throw new Error(`The AI connection is unavailable. Check your connection and try again.`);
   }
-  return response.json as RemoteKeyManifest;
+  return await (response.json as RemoteKeyManifest);
+
+} catch (diagnosticError9) { diagnostics?.failure?.("ocr.fetchRemoteManifest", diagnosticError9); throw diagnosticError9; } finally { diagnosticEnd9(); }
 }
 
 async function tryDecryptManifestKey(manifest: RemoteKeyManifest, source: string): Promise<string> {
+const diagnosticEnd10 = diagnostics?.start?.("ocr.tryDecryptManifestKey") ?? (() => {});
+try {
+
   const active = selectSlot(manifest, "active");
   if (active) {
     try {
       const key = (await decryptSecretEnvelope(active.v, REMOTE_MANIFEST_PASSPHRASE)).trim();
-      if (key) return key;
+      if (key) return await (key);
     } catch (error) {
-      console.warn("Garda: active manifest slot failed to decrypt", source, error);
+diagnostics.failure("ocr.caught_extra_1", error);
+      diagnostics?.legacy?.("warn", "ocr.garda_active_manifest_slot_failed_to_decrypt");
     }
   }
 
@@ -172,13 +213,16 @@ async function tryDecryptManifestKey(manifest: RemoteKeyManifest, source: string
   if (next) {
     try {
       const key = (await decryptSecretEnvelope(next.v, REMOTE_MANIFEST_PASSPHRASE)).trim();
-      if (key) return key;
+      if (key) return await (key);
     } catch (error) {
-      console.warn("Garda: next manifest slot failed to decrypt", source, error);
+diagnostics.failure("ocr.caught_extra_2", error);
+      diagnostics?.legacy?.("warn", "ocr.garda_next_manifest_slot_failed_to_decrypt");
     }
   }
 
-  throw new Error("Remote key manifest did not decrypt to a usable key.");
+  throw new Error("The AI connection is unavailable. Check your connection and try again.");
+
+} catch (diagnosticError10) { diagnostics?.failure?.("ocr.tryDecryptManifestKey", diagnosticError10); throw diagnosticError10; } finally { diagnosticEnd10(); }
 }
 
 // Cached once resolved so every AI call doesn't re-fetch the manifest; cleared implicitly
@@ -191,27 +235,33 @@ let remoteApiKeyCache: string | null = null;
  * unreachable or fails to decrypt (key rotation / relocation support).
  */
 async function fetchRemoteApiKey(): Promise<string> {
+const diagnosticEnd11 = diagnostics?.start?.("ocr.fetchRemoteApiKey") ?? (() => {});
+try {
+
   if (remoteApiKeyCache) {
-    return remoteApiKeyCache;
+    return await (remoteApiKeyCache);
   }
 
   try {
     const manifest = await fetchRemoteManifest(REMOTE_MANIFEST_URL);
     const key = await tryDecryptManifestKey(manifest, REMOTE_MANIFEST_URL);
     remoteApiKeyCache = key;
-    return key;
+    return await (key);
   } catch (primaryError) {
-    console.warn("Garda: primary manifest failed, trying next-manifest fallback", primaryError);
-    const primaryManifest = await fetchRemoteManifest(REMOTE_MANIFEST_URL).catch(() => null);
+diagnostics.failure("ocr.caught_extra_3", primaryError);
+    diagnostics?.legacy?.("warn", "ocr.garda_primary_manifest_failed_trying_next_manifest_fallback");
+    const primaryManifest = await fetchRemoteManifest(REMOTE_MANIFEST_URL).catch((rejectedError1) => { diagnostics.failure("ocr.rejected_2", rejectedError1); return (null); });
     const nextUrl = primaryManifest?.n;
     if (nextUrl && nextUrl !== REMOTE_MANIFEST_URL) {
       const nextManifest = await fetchRemoteManifest(nextUrl);
       const key = await tryDecryptManifestKey(nextManifest, nextUrl);
       remoteApiKeyCache = key;
-      return key;
+      return await (key);
     }
     throw primaryError;
   }
+
+} catch (diagnosticError11) { diagnostics?.failure?.("ocr.fetchRemoteApiKey", diagnosticError11); throw diagnosticError11; } finally { diagnosticEnd11(); }
 }
 
 

@@ -1,37 +1,29 @@
 # Garda Handwriting Text OCR
 
-Version: 5.7.41. Validated for publication; release pending.
+Extract handwriting or text from supported vault images and PDF pages into a clipboard or note destination.
 
-## Current purchase behavior
+Current version: **5.7.51**.
 
-Purchase settings load the app's current offer configuration and Paddle prices from Constance. Offer quantities use the app's native billing unit from that configuration; displayed amounts and descriptions come from the current provider price. The client matches offers by exact configured price ID and enables purchase only when Constance reports `checkout_available`. Checkout sends that exact price ID through the authenticated billing route. Prices and pack quantities are not fixed in the plugin. Existing account balances and granted credits remain associated with the account.
+## First use
 
+Enable the plugin and use its settings page. Simple is the default settings mode; Advanced exposes optional configuration. Open or select a supported attachment, then choose an extraction destination command.
 
-Garda extracts text from image and PDF attachments in Obsidian. It sends selected images directly to OpenRouter using Garda's existing managed key manifest. Constance handles billing and account operations.
+Garda prepares supported images and PDF pages locally and calls OpenRouter directly. Destinations include clipboard, append, replace embed and new note; a folder batch and cancellation command are available. Its attachment cache avoids unnecessary repeated extraction.
 
-## OCR processing
+## Account and processing
 
-Images are decoded and resized locally. Bundled PDF.js renders each PDF page locally. Garda decrypts its existing OpenRouter key manifest and sends each selected page image directly to the established image-capable model. Constance verifies the billing account and installation, serves current Paddle offers, and records credit spending. Successful results are cached locally for unchanged attachments.
+AI requests go directly to OpenRouter using the fixed request model `~openai/gpt-luna-latest`. The existing managed-key resolver supplies the connection; legacy personal-key/model preferences do not override it. Constance handles account and billing operations.
 
-## Usage and privacy
-Connect your billing account in Garda settings, test the connection, select an attachment and choose an extraction command. Simple is the default; Advanced contains diagnostics and less frequent options. Clipboard and new-note commands preserve the original. Replace embed requires confirmation and is blocked when results need review. Folder batches show page progress and support cancellation. Inputs are limited to 20 MB. Browser-dependent HEIC/TIFF files may need conversion to PNG or JPEG.
+Garda meters pages successfully processed. New account usage uses a persisted event ID and atomic consumption; unknown results reconcile using the original event.
 
-Only selected page images are sent to OpenRouter; review its data handling terms before processing sensitive content. Constance receives account, checkout, and credit-spend requests. No separate usage analytics are sent. Cancellation stops further pages and discards the pending response; an already-sent provider request may finish. Originals remain intact unless Replace embed is explicitly selected.
+Connect the existing Constance account in settings; registration can require email verification before signing in again. Billing account passwords are sent for authentication and are not persisted. Access/refresh session data and a stable installation identity are saved locally. Account free usage and purchased balance are determined by Constance; cached values and checkout return URLs do not create entitlement. Catalog displays current formatted names, prices, availability and exact price IDs. Unknown usage and checkout results retain their original identities for recovery.
 
+## Diagnostics
 
-## Manual installation
+Help is available in settings and through Open documentation. Open plugin settings and Copy full debug log are command-palette fallbacks. Debug logging defaults off for a new installation; failures and full Error objects/stacks still appear in the local developer console. Timed information is enabled by the debug preference. The copyable diagnostic buffer keeps at most 1,000 summarized events and excludes raw error text, stacks, note text, paths and credentials. Full console exceptions can contain whatever the failed operation placed in its error. Logs are not uploaded automatically.
 
-Download `main.js`, `manifest.json`, and `styles.css` from the matching published release and place them in `.obsidian/plugins/garda-handwriting-text-ocr/`, then enable the plugin in Obsidian.
+## Documentation
 
+- [User guide](docs/USER_GUIDE.md)
 
-### Getting started with your account
-
-Select an image or PDF, then choose a Garda extraction command. Each successfully processed page uses one credit. Create an account or sign in in the plugin settings, verify your email if requested, then connect. Free AI usage requires a registered, connected account to help prevent abuse. The default lifetime allowance is 5 OCR pages per account as our thank-you for trying the app; settings check the current policy and account balance. You can add credits at affordable prices once you are ready; the current offers and prices load in settings. Setup guidance stays visible until connected, and the welcome appears only once.
-
-## Account lifetime allowance
-
-5 pages lifetime per account. Pages successfully processed. Existing allowance consumption survives upgrades and reinstalls; lifetime allowances do not refill daily. Free units are used first and purchased units cover the remainder of the same operation. Native writes retain reserve, write, verify and finalize safeguards. Uncertain results retain the original event for recovery. The app retains its existing review and result-authorization workflow.
-
-The allowance belongs to the account and does not reset daily or after reinstalling. Free units are consumed first; purchased units cover the remainder. Current prices and available offers load from Constance in settings.
-
-AI requests use the fixed OpenRouter model `~openai/gpt-luna-latest`. Legacy saved model preferences do not change the request model.
+License terms are in LICENSE.

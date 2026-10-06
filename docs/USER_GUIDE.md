@@ -1,74 +1,33 @@
-# Garda Handwriting Text OCR — user guide
+# Garda Handwriting Text OCR user guide
 
-## What Garda does
+Current version: **5.7.51**.
 
-Garda extracts handwriting from a selected image or PDF attachment and lets you copy or place the transcription in your vault. OCR runs on pages prepared locally; the page images are sent directly to OpenRouter. Constance manages Garda accounts, current offers, checkout and OCR credits.
+## Start
 
-## First setup
+1. Enable the plugin in Obsidian Community plugins.
+2. Open its settings and configure the destination or operation as appropriate. Simple is the default; Advanced is optional.
+3. Connect the account when the chosen operation needs account authorization.
+4. Open or select a supported attachment, then choose an extraction destination command.
 
-1. Install and enable **Garda Handwriting Text OCR**.
-2. In **Settings → Community plugins → Garda Handwriting Text OCR**, connect your billing account. No endpoint or API-key field is required.
-3. Use **Test connection** before processing a real file.
-4. Start with one clear image and review the transcription.
+Garda prepares supported images and PDF pages locally and calls OpenRouter directly. Destinations include clipboard, append, replace embed and new note; a folder batch and cancellation command are available. Its attachment cache avoids unnecessary repeated extraction.
 
-## Process an image or PDF
+## Account and usage
 
-Right-click a supported file in the file explorer or use the command palette. Choose one of these destinations:
+Connect the existing Constance account in settings; registration can require email verification before signing in again. Billing account passwords are sent for authentication and are not persisted. Access/refresh session data and a stable installation identity are saved locally. Account free usage and purchased balance are determined by Constance; cached values and checkout return URLs do not create entitlement. Catalog displays current formatted names, prices, availability and exact price IDs. Unknown usage and checkout results retain their original identities for recovery.
 
-- **Copy transcription** — place the text on the clipboard.
-- **Append transcription** — add the text to the current note.
-- **Replace embed** — replace the selected image/PDF embed after review.
-- **Create transcription note** — create a new Markdown note beside the source.
-
-Supported formats include JPG/JPEG, PNG, GIF, BMP, TIFF/TIF, HEIC, WEBP, and PDF. Inputs are limited to 20 MB. PDFs are processed page by page.
-
-### Example
-
-A handwritten image containing:
-
-```text
-Call Maya Friday 4pm
-Send revised proposal
-```
-
-can become:
-
-```markdown
-## Transcription
-
-- Call Maya Friday 4pm
-- Send revised proposal
-```
-
-Review uncertain pages and dates before treating the text as authoritative.
-
-## Folder batches
-
-Right-click a folder and choose the batch extraction action. Garda shows progress, keeps the original files, caches unchanged content, and reports pages that need manual review. Use the visible cancel control when you need to stop a long batch.
-
-## Credits, checkout, and privacy
-
-Each successfully processed page consumes one OCR credit. In **Settings**, connect
-your Constance account before scanning. Garda links its stable installation ID
-to that account and refreshes the server-authoritative balance. The current
-one-time packs grant 50, 150, 450, or 1,200 pages; current prices and descriptions
-come from Paddle through Constance. Garda opens the authenticated checkout in
-your browser, then refreshes balance as settlement is confirmed by Constance's
-webhook processing rather than the browser return page.
-
-If a network response is lost while a document is being charged, Garda keeps
-the pending event ID and retries that same event so the server's idempotency
-guard prevents a duplicate debit. Garda prepares the selected image or PDF page
-locally, then sends that page directly to OpenRouter. Do not process confidential
-handwriting unless you accept the provider's data handling terms.
+Garda meters pages successfully processed. New account usage uses a persisted event ID and atomic consumption; unknown results reconcile using the original event.
 
 ## Troubleshooting
 
-- If a file is not accepted, check that it is a supported image or PDF and is no larger than 20 MB. Some HEIC/TIFF files depend on browser decoding; convert them to PNG or JPEG if needed.
-- If processing fails, check your connection, account status and available page credits, then retry the selected attachment.
-- If OCR completes with uncertain pages, review the transcription before using it. Garda prevents replacement when review is required.
+Help is available in settings and through Open documentation. Open plugin settings and Copy full debug log are command-palette fallbacks. Debug logging defaults off for a new installation; failures and full Error objects/stacks still appear in the local developer console. Timed information is enabled by the debug preference. The copyable diagnostic buffer keeps at most 1,000 summarized events and excludes raw error text, stacks, note text, paths and credentials. Full console exceptions can contain whatever the failed operation placed in its error. Logs are not uploaded automatically.
 
+Use the console's plugin-name prefix and version to identify the failing stage. A catchable failure stops its affected action; retry after resolving the underlying problem. Historical build/install results apply to their recorded versions.
 
-## Diagnostics
+## Removal
 
-For troubleshooting, open Garda settings and choose Copy full log, or run Copy full debug log from the command palette. The copied log contains up to the latest 1,000 Garda events since the most recent plugin load. It excludes note contents, file paths, credentials, and raw error messages. Logs reset when Garda reloads.
+Removing a plugin does not undo earlier file edits or recover an encryption password. Preserve any originals, backups, queues and recovery data you need before removing it. Account purchases remain associated with the account.
+
+See plugin settings for implemented commands, settings defaults and privacy controls.
+## MVP selection update — 6 October 2026
+
+5.7.50: Reviewed recursive file/folder/mixed-selection handling and overlap deduplication. No functional source change was needed in this app.
