@@ -1,29 +1,65 @@
 # Garda Handwriting Text OCR
 
-Extract handwriting or text from supported vault images and PDF pages into a clipboard or note destination.
+Turn supported handwritten images and PDF pages into usable text inside Obsidian.
 
-Current version: **5.7.51**.
+**Best for:** Obsidian users collecting handwritten notes, scans and image attachments.
 
-## First use
+## Top 10 features
 
-Enable the plugin and use its settings page. Simple is the default settings mode; Advanced exposes optional configuration. Open or select a supported attachment, then choose an extraction destination command.
+1. Extract text from supported images.
+2. Process PDF pages.
+3. Copy extracted text.
+4. Append text to a note.
+5. Replace an image embed with text.
+6. Create a new note.
+7. Process supported folder attachments.
+8. See extraction progress.
+9. Cancel a batch.
+10. Reuse cached attachment extraction.
 
-Garda prepares supported images and PDF pages locally and calls OpenRouter directly. Destinations include clipboard, append, replace embed and new note; a folder batch and cancellation command are available. Its attachment cache avoids unnecessary repeated extraction.
+## Example workflow
 
-## Account and processing
+**Before:** A photographed notebook page is visible only as an image.
 
-AI requests go directly to OpenRouter using the fixed request model `~openai/gpt-luna-latest`. The existing managed-key resolver supplies the connection; legacy personal-key/model preferences do not override it. Constance handles account and billing operations.
+**After:** Extract the writing and append the result to a note where you can edit and search it.
 
-Garda meters pages successfully processed. New account usage uses a persisted event ID and atomic consumption; unknown results reconcile using the original event.
+## Pricing
 
-Connect the existing Constance account in settings; registration can require email verification before signing in again. Billing account passwords are sent for authentication and are not persisted. Access/refresh session data and a stable installation identity are saved locally. Account free usage and purchased balance are determined by Constance; cached values and checkout return URLs do not create entitlement. Catalog displays current formatted names, prices, availability and exact price IDs. Unknown usage and checkout results retain their original identities for recovery.
+A connected account includes 5 pages as a one-time lifetime allowance. Previous use counts toward that allowance.
 
-## Diagnostics
+| Pack | USD price | Included units |
+|---|---:|---:|
+| Starter | $2.00 | 50 pages |
+| Standard | $4.00 | 150 pages |
+| Pro | $8.00 | 450 pages |
+| Ultimate | $14.00 | 1,200 pages |
 
-Help is available in settings and through Open documentation. Open plugin settings and Copy full debug log are command-palette fallbacks. Debug logging defaults off for a new installation; failures and full Error objects/stacks still appear in the local developer console. Timed information is enabled by the debug preference. The copyable diagnostic buffer keeps at most 1,000 summarized events and excludes raw error text, stacks, note text, paths and credentials. Full console exceptions can contain whatever the failed operation placed in its error. Logs are not uploaded automatically.
+Packs are one-time purchases. Purchased units do not expire. Final tax and local currency are shown at checkout.
 
-## Documentation
+## What to know
 
-- [User guide](docs/USER_GUIDE.md)
+Requested extraction sends prepared images or PDF-page images to an online AI service. Review recognized text for accuracy.
 
-License terms are in LICENSE.
+---
+
+## Discover Garda Handwriting Text OCR
+
+Whether you need to extract text from supported images or process PDF pages, Garda Handwriting Text OCR provides a focused workflow for Obsidian users collecting handwritten notes, scans and image attachments.
+
+### Common questions
+
+**What can I use it for?**
+
+You can extract text from supported images, append text to a note or replace an image embed with text.
+
+**How do I get started?**
+
+Enable the plugin in Obsidian, open its settings and choose the action that fits your note. Connect your account for metered actions; the settings page shows your remaining allowance and available packs.
+
+### Search description
+
+Turn supported handwritten images and PDF pages into usable text inside Obsidian. Designed for Obsidian users collecting handwritten notes, scans and image attachments.
+
+### Related topics
+
+Obsidian handwriting OCR, image to text Obsidian, PDF OCR notes, handwritten note extraction.
