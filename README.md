@@ -63,3 +63,13 @@ Turn supported handwritten images and PDF pages into usable text inside Obsidian
 ### Related topics
 
 Obsidian handwriting OCR, image to text Obsidian, PDF OCR notes, handwritten note extraction.
+
+<!-- PORTFOLIO-METADATA:START -->
+## Repository metadata
+
+Current source version: **5.7.53** (2026-10-16).
+
+[Architecture](architecture.md) · [AI provenance](ai_model.md) · [History](HISTORY.md) · [Contributors](CONTRIBUTORS.md) · [Manifest](rahul_manifest.yaml).
+
+This maintenance update synchronizes source version metadata and excludes generated junk. Build, runtime, store and deployment verification are separate.
+<!-- PORTFOLIO-METADATA:END -->
