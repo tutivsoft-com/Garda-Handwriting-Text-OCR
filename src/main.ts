@@ -1,3 +1,4 @@
+import { initializeMatomo } from "./matomo-plugin";
 import { selectedFiles, markdownFile, registerSelectionAction } from "./selection-scope";
 import { diagnostics } from "./diagnostics";
 import { showAccountWelcome } from "./constance-account";
@@ -25,6 +26,7 @@ export default class GardaPlugin extends Plugin {
 
   /** Register commands and menus, then load settings without starting a scan. */
   async onload(): Promise<void> {
+    initializeMatomo(this);
 let diagnosticStartupEnd: () => void = () => {};
 
 const diagnosticEnd1 = diagnostics?.start?.("main.onload") ?? (() => {});
