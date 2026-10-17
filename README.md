@@ -66,6 +66,6 @@ Obsidian handwriting OCR, image to text Obsidian, PDF OCR notes, handwritten not
 
 ## Release
 
-Version 5.7.59 is prepared for manual validation and publication.
+Version 5.7.59 was published on 17 October 2026. Its final Obsidian Community audit completed successfully. [Release assets](https://github.com/tutivsoft-com/Garda-Handwriting-Text-OCR/releases/tag/5.7.59).
 
 Basic app usage events are sent to https://atcdn.cyou without note contents. Account and purchase operations use Constance.
