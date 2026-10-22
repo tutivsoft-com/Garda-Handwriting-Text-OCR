@@ -18,7 +18,7 @@ const diagnosticEnd1 = diagnostics?.start?.("ocr.verifyAccount") ?? (() => {});
 try {
 
  const error=getConfigurationError(plugin); if(error) throw new Error(error);
- const send=()=>(diagnostics?.request?.("network.ocr.verifyAccount", requestUrl, {url:`https://app.tutivsoft.com/api/v1/billing/entitlements/me?app_id=garda-handwriting-text-ocr&installation_id=${encodeURIComponent(plugin.settings.constanceDeviceId)}`,headers:{Authorization:`Bearer ${plugin.settings.billingAccessToken}`},throw:false}) ?? requestUrl({url:`https://app.tutivsoft.com/api/v1/billing/entitlements/me?app_id=garda-handwriting-text-ocr&installation_id=${encodeURIComponent(plugin.settings.constanceDeviceId)}`,headers:{Authorization:`Bearer ${plugin.settings.billingAccessToken}`},throw:false}));
+ const send=()=>(diagnostics?.request?.("network.ocr.verifyAccount", requestUrl, {url:`https://app.tutivsoft.com/api/v2/billing/entitlements/me?app_id=garda-handwriting-text-ocr&installation_id=${encodeURIComponent(plugin.settings.constanceDeviceId)}`,headers:{Authorization:`Bearer ${plugin.settings.billingAccessToken}`},throw:false}) ?? requestUrl({url:`https://app.tutivsoft.com/api/v2/billing/entitlements/me?app_id=garda-handwriting-text-ocr&installation_id=${encodeURIComponent(plugin.settings.constanceDeviceId)}`,headers:{Authorization:`Bearer ${plugin.settings.billingAccessToken}`},throw:false}));
  if(!plugin.settings.billingAccessToken && !await refreshBillingSession(plugin.settings,()=>plugin.saveSettings())) throw new Error("Connect your account again.");
  let response=await send();
  if(response.status===401 && await refreshBillingSession(plugin.settings,()=>plugin.saveSettings())) response=await send();
