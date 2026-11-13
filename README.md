@@ -24,7 +24,7 @@ Uncertain older billing records are retained and are never replayed as new v2 ch
 
 Version 5.7.72: OCR operations retain destination and batch controls, with current account feedback and diagnostics.
 
-Use the matching GitHub release for installation availability. Community directory review is separate from source validation.
+Obsidian Community release **5.7.72** requires Obsidian **1.5.0** or later. [GitHub release](https://github.com/tutivsoft-com/Garda-Handwriting-Text-OCR/releases/tag/5.7.72).
 
 ## Support
 
