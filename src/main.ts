@@ -64,7 +64,7 @@ return diagnostics.guard("main.event_2", () => { const target = this.embedAtCurs
     this.addSettingTab(new GardaSettingTab(this.app, this));
     this.support.showWelcome();
     await showAccountWelcome(this, this.settings, () => this.saveSettings());
-    void diagnostics.guard("main.background_3", () => (syncBalance(this).then(() => retryPendingSpendEvents(this))));
+    if (this.settings.billingAccountLinked) void diagnostics.guard("main.background_3", () => (syncBalance(this).then(() => retryPendingSpendEvents(this))));
 
 } catch (diagnosticError1) { diagnostics?.failure?.("main.onload", diagnosticError1); throw diagnosticError1; } finally { diagnosticStartupEnd();  diagnostics?.legacy?.("info", "startup.finished"); diagnosticEnd1(); }
 }
@@ -150,6 +150,8 @@ try {
       await this.run(target.file, action, target);
       return;
     }
+    const target = this.embedAtCursor(this.app.workspace.activeEditor?.editor);
+    if (target) { await this.run(target.file, action); return; }
     const file = this.app.workspace.getActiveFile();
     if (!file || !this.isSupported(file)) { new Notice("Garda: select a supported image or PDF file."); return; }
     await this.run(file, action);
