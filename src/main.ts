@@ -32,7 +32,7 @@ let diagnosticStartupEnd: () => void = () => {};
 const diagnosticEnd1 = diagnostics?.start?.("main.onload") ?? (() => {});
 try {
 
-    this.support = new PluginSupport(this, { name: "Garda Handwriting Text OCR", summary: "Extract text from supported images and PDFs into your notes.", quickStart: ["Sign in to your account in Settings.", "Open or select a supported attachment.", "Choose an OCR destination command."], commands: ["Extract to clipboard", "Append to current note", "Batch extract folder"], troubleshooting: ["Use Copy diagnostic log before reporting a problem.", "Check the attachment type and your available credits."] });
+    this.support = new PluginSupport(this, { name: "Garda AI Handwriting Text OCR", summary: "Extract text from supported images and PDFs into your notes.", quickStart: ["Sign in to your account in Settings.", "Open or select a supported attachment.", "Choose an OCR destination command."], commands: ["Extract to clipboard", "Append to current note", "Batch extract folder"], troubleshooting: ["Use Copy diagnostic log before reporting a problem.", "Check the attachment type and your available credits."] });
     this.support.start();
     const stored = await this.loadData();
     this.settings = Object.assign({}, DEFAULT_SETTINGS, stored, { cache: { ...DEFAULT_SETTINGS.cache, ...(stored?.cache ?? {}) } });

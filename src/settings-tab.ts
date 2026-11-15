@@ -24,7 +24,7 @@ diagnosticStage3();
 this.plugin.support.addDebugSetting?.(containerEl);
 
     const diagnosticStage4 = diagnostics?.start?.("settings.render.stage_1") ?? (() => {});
-containerEl.createEl("h2", { text: "Garda Handwriting Text OCR" });
+containerEl.createEl("h2", { text: "Garda AI Handwriting Text OCR" });
 diagnosticStage4();
 
     const diagnosticStage5 = diagnostics?.start?.("settings.render.settings_mode") ?? (() => {});

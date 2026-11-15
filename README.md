@@ -1,4 +1,4 @@
-# Garda Handwriting Text OCR
+# Garda AI Handwriting Text OCR
 
 Extract text from supported vault images and PDF pages into the selected destination.
 
@@ -22,9 +22,9 @@ Uncertain older billing records are retained and are never replayed as new v2 ch
 
 ## Release
 
-Version 5.7.72: OCR operations retain destination and batch controls, with current account feedback and diagnostics.
+Version 5.7.73: OCR operations retain destination and batch controls, with current account feedback and diagnostics.
 
-Obsidian Community release **5.7.72** requires Obsidian **1.5.0** or later. [GitHub release](https://github.com/tutivsoft-com/Garda-Handwriting-Text-OCR/releases/tag/5.7.72).
+Version **5.7.73** requires Obsidian **1.5.0** or later.
 
 ## Support
 
